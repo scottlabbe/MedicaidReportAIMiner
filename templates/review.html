@@ -174,12 +174,12 @@
                                 <div class="row">
                                     <div class="col-md-6 mb-3">
                                         <label for="audit_period_start_date" class="form-label">Start Date</label>
-                                        <input type="date" class="form-control" id="audit_period_start_date" value="{{ report_data.audit_period_start_date.strftime('%Y-%m-%d') if report_data.audit_period_start_date else '' }}">
+                                        <input type="date" class="form-control" id="audit_period_start_date" value="{{ report_data.audit_period_start_date if isinstance(report_data.audit_period_start_date, str) else (report_data.audit_period_start_date.strftime('%Y-%m-%d') if report_data.audit_period_start_date else '') }}">
                                     </div>
                                     
                                     <div class="col-md-6 mb-3">
                                         <label for="audit_period_end_date" class="form-label">End Date</label>
-                                        <input type="date" class="form-control" id="audit_period_end_date" value="{{ report_data.audit_period_end_date.strftime('%Y-%m-%d') if report_data.audit_period_end_date else '' }}">
+                                        <input type="date" class="form-control" id="audit_period_end_date" value="{{ report_data.audit_period_end_date if isinstance(report_data.audit_period_end_date, str) else (report_data.audit_period_end_date.strftime('%Y-%m-%d') if report_data.audit_period_end_date else '') }}">
                                     </div>
                                 </div>
                                 
