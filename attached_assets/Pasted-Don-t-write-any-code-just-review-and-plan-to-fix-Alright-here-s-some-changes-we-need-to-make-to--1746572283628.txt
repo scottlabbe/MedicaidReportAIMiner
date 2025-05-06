@@ -1,0 +1,36 @@
+Don’t write any code, just review and plan to fix. 
+Alright, here’s some changes we need to make to ai extraction code, review template, and/or data model. Please review and develop a plan to comprehensively implement these changes. 
+
+Revise Audit Period to be Audit Scope and accept a string value. Different reports might have irregular descriptions that could be a date range or it could be a sentence description.   Remove the Total Financial Impact from entire process. 
+
+The potential audit objectives did not load to the review, please check if there was a mismatch somewhere.   Here’s a change we need to make to the keywords extraction process. 
+
+Modified Process Flow for Keyword Extraction & Review:
+1. Upload PDF: (No change)
+2. Deduplication Check: (No change)
+3. Store PDF File: (No change)
+4. PDF Metadata Extraction (New/Enhanced Step):
+    * Before or concurrently with sending the main content to the AI, use a PDF library (like PyMuPDF/fitz or pypdf2) to extract standard PDF metadata.
+    * Specifically look for a "Keywords" field within the PDF's properties/info dictionary.
+    * If this field exists and contains keywords (they are often stored as a single string, possibly comma or semicolon-separated, or sometimes as a list), parse them into a list of individual keyword strings.
+    * Let's call this pdf_metadata_keywords: List[str].
+5. Parse PDF Main Content: Extract the full text from the PDF pages for AI processing. (No change)
+6. AI Structured Data Extraction (including AI-suggested keywords):
+    * Send the main PDF text content to the chosen LLM.
+    * The LLM extracts the structured data fields as per our Pydantic models, including its own list of suggested keywords based on the content.
+    * Let's call this ai_suggested_keywords: List[str].
+7. Combine and Deduplicate Keywords (New Step):
+    * Take pdf_metadata_keywords and ai_suggested_keywords.
+    * Combine these two lists.
+    * Convert all keywords to a consistent case (e.g., lowercase) to avoid duplicates like "Billing" and "billing".
+    * Remove any duplicate keywords to create a single, unique list.
+    * Let's call this combined_keywords_for_review: List[str].
+8. Admin Review & Edit Interface:
+    * When the AI response is presented for your review, the "Keywords" section will now display combined_keywords_for_review.
+    * You will see a single list of keywords sourced from both PDF metadata and AI analysis.
+    * Editing Capability: You can:
+        * Remove any keyword from this combined list (whether it originally came from metadata or AI).
+        * Add new keywords manually to this list.
+        * (Potentially edit existing keywords, though often removing and adding a corrected version is simpler).
+9. Transactional Save:
+    * When you approve and save, the final, curated list of keywords (after your additions/removals) is what gets saved to the database (i.e., populated into the keywords and report_keywords tables).

@@ -37,10 +37,7 @@ class ReportData(BaseModel):
     potential_objective_summary: Optional[str] = Field(None, description="An AI-generated summary of the objectives")
     original_report_source_url: Optional[str] = Field(None, description="URL to the original report, if available")
     state: Optional[str] = Field(None, description="The US state code related to the report (e.g., 'NY', 'CA')")
-    total_financial_impact: Optional[float] = Field(None, description="The total financial impact in dollars for the whole report")
-    audit_period_start_date: Optional[str] = Field(None, description="The start date of the audit period in YYYY-MM-DD format")
-    audit_period_end_date: Optional[str] = Field(None, description="The end date of the audit period in YYYY-MM-DD format")
-    audit_period_description: Optional[str] = Field(None, description="Text description of the audit period")
+    audit_scope: Optional[str] = Field(None, description="A text description of the audit scope, which may include a date range or other scope information")
     extracted_keywords: List[str] = Field([], description="Relevant keywords extracted from the report content")
 
 class AIExtractionLog(BaseModel):
@@ -77,6 +74,11 @@ def extract_data_with_openai(pdf_text, api_key):
         You are an AI assistant specialized in extracting structured information from Medicaid audit reports.
         Your task is to extract specific data points from the provided report text and format them according to the specified schema.
         Focus on accuracy and be as detailed as possible. If some information is not present in the text, leave those fields empty or null.
+        
+        Important: For audit_scope, provide a comprehensive text description of the audit's scope. This may include time periods, 
+        programs examined, departments audited, or any other contextual information defining the boundaries of the audit.
+        
+        Always generate a potential_objective_summary that summarizes the main objectives of the audit in a concise paragraph.
         """
         
         # Prepare the user prompt
@@ -85,6 +87,11 @@ def extract_data_with_openai(pdf_text, api_key):
         Make sure to include all findings, recommendations, and objectives mentioned in the report.
         For keywords, identify 5-10 relevant terms that best represent the report content.
         Also provide an insightful summary about the report's significance and implications.
+        
+        For the audit_scope field, capture the full scope information including any dates, programs, 
+        or organizational boundaries mentioned in the report. Format this as a comprehensive text description.
+        
+        Be sure to include a potential_objective_summary that concisely summarizes the audit objectives.
         
         Here's the report text:
         {pdf_text[:50000]}  # Limiting to first 50k characters for token limits

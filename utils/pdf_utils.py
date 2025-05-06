@@ -42,6 +42,68 @@ def get_file_hash(file_path):
             sha256_hash.update(byte_block)
     return sha256_hash.hexdigest()
 
+def extract_keywords_from_pdf_metadata(pdf_path):
+    """
+    Extract keywords from PDF metadata.
+    
+    Args:
+        pdf_path: Path to the PDF file
+        
+    Returns:
+        list: List of keywords found in PDF metadata
+    """
+    keywords = []
+    try:
+        with open(pdf_path, 'rb') as file:
+            pdf_reader = PyPDF2.PdfReader(file)
+            if pdf_reader.metadata and hasattr(pdf_reader.metadata, 'get'):
+                # Get keywords from metadata - they can be stored under different names
+                for key in ['/Keywords', '/Subject']:
+                    keyword_str = pdf_reader.metadata.get(key, '')
+                    if keyword_str:
+                        # Keywords can be comma or semicolon-separated
+                        for sep in [',', ';']:
+                            if sep in keyword_str:
+                                # Split, strip and add non-empty keywords to the list
+                                for kw in keyword_str.split(sep):
+                                    kw = kw.strip()
+                                    if kw:
+                                        keywords.append(kw)
+                                break
+                        else:
+                            # If no separator found, add the entire string as a single keyword
+                            keywords.append(keyword_str.strip())
+        
+        return [kw for kw in keywords if kw]  # Return non-empty keywords
+    except Exception as e:
+        logging.error(f"Error extracting keywords from PDF metadata: {e}")
+        return []  # Return empty list on error
+
+def process_keywords(pdf_keywords, ai_keywords):
+    """
+    Process and combine keywords from PDF metadata and AI extraction.
+    
+    Args:
+        pdf_keywords: List of keywords from PDF metadata
+        ai_keywords: List of keywords from AI extraction
+        
+    Returns:
+        list: Combined, deduplicated list of keywords
+    """
+    # Combine keywords
+    combined_keywords = pdf_keywords + ai_keywords
+    
+    # Normalize case and strip whitespace
+    normalized_keywords = [kw.lower().strip() for kw in combined_keywords if kw]
+    
+    # Remove duplicates while preserving order
+    unique_keywords = []
+    for kw in normalized_keywords:
+        if kw and kw not in unique_keywords:
+            unique_keywords.append(kw)
+    
+    return unique_keywords
+
 def save_uploaded_file(file, upload_folder):
     """
     Save an uploaded file to the specified folder.

@@ -5,7 +5,7 @@ from flask import render_template, request, redirect, url_for, flash, jsonify, c
 from werkzeug.utils import secure_filename
 from app import db
 from models import Report, Finding, Recommendation, Objective, Keyword, AIProcessingLog
-from utils.pdf_utils import extract_text_from_pdf, save_uploaded_file
+from utils.pdf_utils import extract_text_from_pdf, save_uploaded_file, extract_keywords_from_pdf_metadata, process_keywords
 from utils.ai_extraction import extract_data_with_openai
 from utils.db_utils import check_duplicate_report, save_report_to_db, update_report_in_db
 
@@ -89,6 +89,9 @@ def register_routes(app):
                     # Extract text from PDF
                     pdf_text = extract_text_from_pdf(file_path)
                     
+                    # Extract keywords from PDF metadata
+                    pdf_metadata_keywords = extract_keywords_from_pdf_metadata(file_path)
+                    
                     # Use AI model to extract data
                     if ai_model == 'openai':
                         api_key = app.config.get('OPENAI_API_KEY')
@@ -98,14 +101,22 @@ def register_routes(app):
                         # Extract data and get AI log
                         report_data, ai_log = extract_data_with_openai(pdf_text, api_key)
                         
+                        # Combine and deduplicate keywords from PDF metadata and AI extraction
+                        combined_keywords = process_keywords(pdf_metadata_keywords, report_data.extracted_keywords)
+                        
+                        # Update the report data with combined keywords
+                        report_data_dict = report_data.dict()
+                        report_data_dict['extracted_keywords'] = combined_keywords
+                        
                         # Redirect to review page with extraction ID
                         upload_results.append({
                             'filename': file.filename,
                             'status': 'success',
                             'message': 'Processing completed successfully',
                             'temp_id': file_hash,  # Use file hash as a temporary ID for now
-                            'report_data': report_data.dict(),
-                            'ai_log': ai_log.dict()
+                            'report_data': report_data_dict,
+                            'ai_log': ai_log.dict(),
+                            'pdf_metadata_keywords': pdf_metadata_keywords
                         })
                         
                     else:
@@ -265,10 +276,7 @@ def register_routes(app):
                 'potential_objective_summary': report.potential_objective_summary,
                 'original_report_source_url': report.original_report_source_url,
                 'state': report.state,
-                'total_financial_impact': report.total_financial_impact,
-                'audit_period_start_date': report.audit_period_start_date,
-                'audit_period_end_date': report.audit_period_end_date,
-                'audit_period_description': report.audit_period_description,
+                'audit_scope': report.audit_scope,
             },
             'objectives': [{'objective_text': obj.objective_text} for obj in report.objectives],
             'findings': [{'finding_text': f.finding_text, 'financial_impact': f.financial_impact} for f in report.findings],

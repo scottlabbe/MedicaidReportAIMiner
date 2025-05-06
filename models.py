@@ -17,10 +17,7 @@ class Report(db.Model):
     potential_objective_summary = Column(Text)
     original_report_source_url = Column(String(255))
     state = Column(String(2))
-    total_financial_impact = Column(Float)
-    audit_period_start_date = Column(Date)
-    audit_period_end_date = Column(Date)
-    audit_period_description = Column(Text)
+    audit_scope = Column(Text)
     
     # PDF and system metadata
     original_filename = Column(String(255), nullable=False)

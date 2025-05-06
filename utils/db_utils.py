@@ -55,10 +55,7 @@ def save_report_to_db(report_data, file_metadata, ai_log):
             potential_objective_summary=report_data.potential_objective_summary,
             original_report_source_url=report_data.original_report_source_url,
             state=report_data.state,
-            total_financial_impact=report_data.total_financial_impact,
-            audit_period_start_date=datetime.strptime(report_data.audit_period_start_date, '%Y-%m-%d').date() if report_data.audit_period_start_date else None,
-            audit_period_end_date=datetime.strptime(report_data.audit_period_end_date, '%Y-%m-%d').date() if report_data.audit_period_end_date else None,
-            audit_period_description=report_data.audit_period_description,
+            audit_scope=report_data.audit_scope,
             original_filename=filename,
             file_hash=file_hash,
             pdf_storage_path=file_path,
@@ -151,21 +148,7 @@ def update_report_in_db(report_id, updated_data):
         # Update main report fields
         for key, value in updated_data.get('report', {}).items():
             if hasattr(report, key):
-                # Special handling for date fields
-                if key == 'audit_period_start_date' and value:
-                    try:
-                        setattr(report, key, datetime.strptime(value, '%Y-%m-%d').date())
-                    except (ValueError, TypeError):
-                        # If the date is already a datetime object or in another format, try direct assignment
-                        setattr(report, key, value)
-                elif key == 'audit_period_end_date' and value:
-                    try:
-                        setattr(report, key, datetime.strptime(value, '%Y-%m-%d').date())
-                    except (ValueError, TypeError):
-                        # If the date is already a datetime object or in another format, try direct assignment
-                        setattr(report, key, value)
-                else:
-                    setattr(report, key, value)
+                setattr(report, key, value)
         
         # Update objectives
         if 'objectives' in updated_data:
