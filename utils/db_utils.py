@@ -61,6 +61,7 @@ def save_report_to_db(report_data, file_metadata, ai_log):
             audit_scope=report_data['audit_scope'] if is_dict else report_data.audit_scope,
             original_filename=filename,
             file_hash=file_hash,
+            pdf_storage_path="",  # Empty string as we no longer store PDFs
             file_size_bytes=file_size,
             status='published',
             processing_status='extracted'

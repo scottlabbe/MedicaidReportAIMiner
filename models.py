@@ -22,6 +22,8 @@ class Report(db.Model):
     # File metadata (no PDF storage)
     original_filename = Column(String(255), nullable=False)
     file_hash = Column(String(64), nullable=False, unique=True)
+    # Keeping this for backwards compatibility with existing DB records, but marking as nullable
+    pdf_storage_path = Column(String(255), nullable=True, default="")
     file_size_bytes = Column(Integer, nullable=False)
     featured = Column(Boolean, default=False)
     status = Column(String(50), default='processing')
