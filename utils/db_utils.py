@@ -151,7 +151,21 @@ def update_report_in_db(report_id, updated_data):
         # Update main report fields
         for key, value in updated_data.get('report', {}).items():
             if hasattr(report, key):
-                setattr(report, key, value)
+                # Special handling for date fields
+                if key == 'audit_period_start_date' and value:
+                    try:
+                        setattr(report, key, datetime.strptime(value, '%Y-%m-%d').date())
+                    except (ValueError, TypeError):
+                        # If the date is already a datetime object or in another format, try direct assignment
+                        setattr(report, key, value)
+                elif key == 'audit_period_end_date' and value:
+                    try:
+                        setattr(report, key, datetime.strptime(value, '%Y-%m-%d').date())
+                    except (ValueError, TypeError):
+                        # If the date is already a datetime object or in another format, try direct assignment
+                        setattr(report, key, value)
+                else:
+                    setattr(report, key, value)
         
         # Update objectives
         if 'objectives' in updated_data:
