@@ -61,22 +61,8 @@
 </div>
 
 <div class="row">
-    <!-- PDF Viewer -->
-    <div class="col-md-6">
-        <div class="card mb-4">
-            <div class="card-header bg-primary">
-                <h5 class="mb-0">Original PDF</h5>
-            </div>
-            <div class="card-body p-0">
-                <div class="pdf-container">
-                    <div id="pdfViewer"></div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
     <!-- Extracted Data Form -->
-    <div class="col-md-6">
+    <div class="col-md-12">
         <div class="card mb-4">
             <div class="card-header bg-success">
                 <h5 class="mb-0">Extracted Data</h5>
@@ -412,51 +398,7 @@
 <script src="{{ url_for('static', filename='js/review.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Load and display PDF
-    const pdfUrl = "{{ url_for('serve_pdf', filename=pdf_path.split('/')[-1]) }}";
-    
-    // Initialize PDF.js
-    const pdfViewer = document.getElementById('pdfViewer');
-    
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
-    
-    // Load PDF
-    pdfjsLib.getDocument(pdfUrl).promise.then(function(pdf) {
-        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-            renderPage(pdf, pageNum);
-        }
-    }).catch(function(error) {
-        console.error('Error loading PDF:', error);
-        pdfViewer.innerHTML = '<div class="alert alert-danger m-3">Error loading PDF: ' + error.message + '</div>';
-    });
-    
-    function renderPage(pdf, pageNumber) {
-        pdf.getPage(pageNumber).then(function(page) {
-            const viewport = page.getViewport({ scale: 1.5 });
-            
-            // Create a canvas for each page
-            const canvas = document.createElement('canvas');
-            const context = canvas.getContext('2d');
-            canvas.height = viewport.height;
-            canvas.width = viewport.width;
-            
-            // Add page number indicator
-            const pageDiv = document.createElement('div');
-            pageDiv.className = 'pdf-page';
-            pageDiv.innerHTML = `<div class="text-center text-muted my-2">Page ${pageNumber}</div>`;
-            
-            pdfViewer.appendChild(pageDiv);
-            pageDiv.appendChild(canvas);
-            
-            // Render the page
-            const renderContext = {
-                canvasContext: context,
-                viewport: viewport
-            };
-            
-            page.render(renderContext);
-        });
-    }
+    // PDF preview has been removed as per requirements
     
     // Form handling
     const form = document.getElementById('extractionForm');
