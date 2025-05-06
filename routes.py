@@ -1,11 +1,17 @@
 import os
+import io
 import json
+import hashlib
 import logging
 from flask import render_template, request, redirect, url_for, flash, jsonify, current_app, send_from_directory
 from werkzeug.utils import secure_filename
 from app import db
 from models import Report, Finding, Recommendation, Objective, Keyword, AIProcessingLog
-from utils.pdf_utils import extract_text_from_pdf, save_uploaded_file, extract_keywords_from_pdf_metadata, process_keywords
+from utils.pdf_utils import (
+    extract_text_from_pdf, extract_text_from_pdf_memory,
+    extract_keywords_from_pdf_metadata, extract_keywords_from_pdf_metadata_memory,
+    process_keywords
+)
 from utils.ai_extraction import extract_data_with_openai
 from utils.db_utils import check_duplicate_report, save_report_to_db, update_report_in_db
 
@@ -58,9 +64,13 @@ def register_routes(app):
                     continue
                 
                 try:
-                    # Save the uploaded file
-                    file_metadata = save_uploaded_file(file, app.config['UPLOAD_FOLDER'])
-                    filename, file_path, file_size, file_hash = file_metadata
+                    # Process the file in memory without saving to disk
+                    file_content = file.read()
+                    file_size = len(file_content)
+                    filename = secure_filename(file.filename)
+                    
+                    # Calculate file hash from memory
+                    file_hash = hashlib.sha256(file_content).hexdigest()
                     
                     # Check for duplicates
                     is_duplicate, existing_report, reason = check_duplicate_report(file_hash, filename)
@@ -81,16 +91,16 @@ def register_routes(app):
                                 'message': f'Report with same filename already exists (ID: {existing_report.id}). Content is different.',
                                 'report_id': existing_report.id
                             })
-                        
-                        # Clean up the uploaded file if it's a duplicate
-                        os.remove(file_path)
                         continue
                     
-                    # Extract text from PDF
-                    pdf_text = extract_text_from_pdf(file_path)
+                    # Create a BytesIO object from file content
+                    pdf_io = io.BytesIO(file_content)
                     
-                    # Extract keywords from PDF metadata
-                    pdf_metadata_keywords = extract_keywords_from_pdf_metadata(file_path)
+                    # Extract text from PDF in memory
+                    pdf_text = extract_text_from_pdf_memory(pdf_io)
+                    
+                    # Extract keywords from PDF metadata in memory
+                    pdf_metadata_keywords = extract_keywords_from_pdf_metadata_memory(pdf_io)
                     
                     # Use AI model to extract data
                     if ai_model == 'openai':
@@ -108,6 +118,10 @@ def register_routes(app):
                         report_data_dict = report_data.dict()
                         report_data_dict['extracted_keywords'] = combined_keywords
                         
+                        # Create file metadata tuple for in-memory processing
+                        # (filename, file_size, file_hash) - no file path needed
+                        file_metadata = (filename, file_size, file_hash)
+                        
                         # Redirect to review page with extraction ID
                         upload_results.append({
                             'filename': file.filename,
@@ -116,7 +130,8 @@ def register_routes(app):
                             'temp_id': file_hash,  # Use file hash as a temporary ID for now
                             'report_data': report_data_dict,
                             'ai_log': ai_log.dict(),
-                            'pdf_metadata_keywords': pdf_metadata_keywords
+                            'pdf_metadata_keywords': pdf_metadata_keywords,
+                            'file_metadata': file_metadata
                         })
                         
                     else:
@@ -125,8 +140,6 @@ def register_routes(app):
                             'status': 'error',
                             'message': f'Unsupported AI model: {ai_model}'
                         })
-                        # Clean up the uploaded file
-                        os.remove(file_path)
                 
                 except Exception as e:
                     logging.error(f"Error processing file {file.filename}: {e}")
@@ -135,9 +148,6 @@ def register_routes(app):
                         'status': 'error',
                         'message': str(e)
                     })
-                    # Clean up the uploaded file in case of error
-                    if 'file_path' in locals() and os.path.exists(file_path):
-                        os.remove(file_path)
             
             # Store processing results in session for review
             if any(result['status'] == 'success' for result in upload_results):
@@ -152,7 +162,7 @@ def register_routes(app):
                     app.config[f'temp_extraction_{temp_id}'] = {
                         'report_data': result['report_data'],
                         'ai_log': result['ai_log'],
-                        'file_metadata': file_metadata
+                        'file_metadata': result['file_metadata']
                     }
                     return redirect(url_for('review', temp_id=temp_id))
                 else:
@@ -210,8 +220,7 @@ def register_routes(app):
                 return render_template('review.html', 
                                     report_data=report_data,
                                     ai_log=ai_log,
-                                    temp_id=temp_id,
-                                    pdf_path=file_metadata[1])
+                                    temp_id=temp_id)
         
         # GET request - show review form
         return render_template('review.html', 

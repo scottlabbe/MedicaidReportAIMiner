@@ -1,4 +1,5 @@
 import os
+import io
 import hashlib
 import logging
 import PyPDF2
@@ -42,6 +43,28 @@ def get_file_hash(file_path):
             sha256_hash.update(byte_block)
     return sha256_hash.hexdigest()
 
+def extract_text_from_pdf_memory(pdf_io):
+    """
+    Extract text content from a PDF file in memory.
+    
+    Args:
+        pdf_io: BytesIO object containing the PDF file
+        
+    Returns:
+        str: Extracted text content
+    """
+    try:
+        text = ""
+        pdf_io.seek(0)  # Reset pointer to beginning of file
+        pdf_reader = PyPDF2.PdfReader(pdf_io)
+        for page_num in range(len(pdf_reader.pages)):
+            page = pdf_reader.pages[page_num]
+            text += page.extract_text() + "\n\n---- Page Break ----\n\n"
+        return text
+    except Exception as e:
+        logging.error(f"Error extracting text from PDF in memory: {e}")
+        raise ValueError(f"Failed to extract text from PDF in memory: {e}")
+
 def extract_keywords_from_pdf_metadata(pdf_path):
     """
     Extract keywords from PDF metadata.
@@ -77,6 +100,43 @@ def extract_keywords_from_pdf_metadata(pdf_path):
         return [kw for kw in keywords if kw]  # Return non-empty keywords
     except Exception as e:
         logging.error(f"Error extracting keywords from PDF metadata: {e}")
+        return []  # Return empty list on error
+        
+def extract_keywords_from_pdf_metadata_memory(pdf_io):
+    """
+    Extract keywords from PDF metadata in memory.
+    
+    Args:
+        pdf_io: BytesIO object containing the PDF file
+        
+    Returns:
+        list: List of keywords found in PDF metadata
+    """
+    keywords = []
+    try:
+        pdf_io.seek(0)  # Reset pointer to beginning of file
+        pdf_reader = PyPDF2.PdfReader(pdf_io)
+        if pdf_reader.metadata and hasattr(pdf_reader.metadata, 'get'):
+            # Get keywords from metadata - they can be stored under different names
+            for key in ['/Keywords', '/Subject']:
+                keyword_str = pdf_reader.metadata.get(key, '')
+                if keyword_str:
+                    # Keywords can be comma or semicolon-separated
+                    for sep in [',', ';']:
+                        if sep in keyword_str:
+                            # Split, strip and add non-empty keywords to the list
+                            for kw in keyword_str.split(sep):
+                                kw = kw.strip()
+                                if kw:
+                                    keywords.append(kw)
+                            break
+                    else:
+                        # If no separator found, add the entire string as a single keyword
+                        keywords.append(keyword_str.strip())
+    
+        return [kw for kw in keywords if kw]  # Return non-empty keywords
+    except Exception as e:
+        logging.error(f"Error extracting keywords from PDF metadata in memory: {e}")
         return []  # Return empty list on error
 
 def process_keywords(pdf_keywords, ai_keywords):
