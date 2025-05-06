@@ -138,18 +138,20 @@ def save_report_to_db(report_data, file_metadata, ai_log):
                 db.session.add(keyword)
         
         # Add AI processing log
+        is_ai_log_dict = isinstance(ai_log, dict)
+        
         ai_processing_log = AIProcessingLog(
             report_id=report.id,
-            model_name=ai_log.model_name,
-            input_tokens=ai_log.input_tokens,
-            output_tokens=ai_log.output_tokens,
-            total_tokens=ai_log.total_tokens,
-            input_cost=ai_log.input_cost,
-            output_cost=ai_log.output_cost,
-            total_cost=ai_log.total_cost,
-            processing_time_ms=ai_log.processing_time_ms,
-            extraction_status=ai_log.extraction_status,
-            error_details=ai_log.error_details
+            model_name=ai_log['model_name'] if is_ai_log_dict else ai_log.model_name,
+            input_tokens=ai_log['input_tokens'] if is_ai_log_dict else ai_log.input_tokens,
+            output_tokens=ai_log['output_tokens'] if is_ai_log_dict else ai_log.output_tokens,
+            total_tokens=ai_log['total_tokens'] if is_ai_log_dict else ai_log.total_tokens,
+            input_cost=ai_log['input_cost'] if is_ai_log_dict else ai_log.input_cost,
+            output_cost=ai_log['output_cost'] if is_ai_log_dict else ai_log.output_cost,
+            total_cost=ai_log['total_cost'] if is_ai_log_dict else ai_log.total_cost,
+            processing_time_ms=ai_log['processing_time_ms'] if is_ai_log_dict else ai_log.processing_time_ms,
+            extraction_status=ai_log['extraction_status'] if is_ai_log_dict else ai_log.extraction_status,
+            error_details=ai_log['error_details'] if is_ai_log_dict and 'error_details' in ai_log else (ai_log.error_details if not is_ai_log_dict else None)
         )
         db.session.add(ai_processing_log)
         
