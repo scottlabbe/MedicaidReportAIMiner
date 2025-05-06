@@ -1,0 +1,185 @@
+{% extends "layout.html" %}
+
+{% block head_content %}
+<title>{{ report.report_title }} - Medicaid Audit Report Analyzer</title>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>
+                <i class="fas fa-file-alt me-2"></i>
+                Report Details
+            </h1>
+            <div>
+                <a href="{{ url_for('report_edit', report_id=report.id) }}" class="btn btn-outline-primary me-2">
+                    <i class="fas fa-edit me-1"></i> Edit Report
+                </a>
+                <a href="{{ url_for('reports') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i> Back to Reports
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card mb-4">
+            <div class="card-header bg-primary">
+                <h5 class="mb-0">{{ report.report_title }}</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <h6 class="fw-bold">Audit Organization:</h6>
+                        <p>{{ report.audit_organization }}</p>
+                        
+                        <h6 class="fw-bold">Publication Date:</h6>
+                        <p>{{ report.publication_month }}/{{ report.publication_day|default('--') }}/{{ report.publication_year }}</p>
+                        
+                        <h6 class="fw-bold">State:</h6>
+                        <p>
+                            {% if report.state %}
+                            <span class="badge bg-info">{{ report.state }}</span>
+                            {% else %}
+                            <span class="text-muted">N/A</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="fw-bold">Audit Scope:</h6>
+                        <p>{{ report.audit_scope or 'Not specified' }}</p>
+                        
+                        <h6 class="fw-bold">Original Source:</h6>
+                        <p>
+                            {% if report.original_report_source_url %}
+                            <a href="{{ report.original_report_source_url }}" target="_blank">
+                                {{ report.original_report_source_url }}
+                                <i class="fas fa-external-link-alt ms-1"></i>
+                            </a>
+                            {% else %}
+                            <span class="text-muted">Not available</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+                
+                <h5 class="card-title mb-3">Overall Conclusion</h5>
+                <div class="p-3 bg-light rounded mb-4">
+                    {{ report.overall_conclusion or 'No conclusion provided.' }}
+                </div>
+                
+                <h5 class="card-title mb-3">AI-Generated Insight</h5>
+                <div class="p-3 bg-light rounded mb-4">
+                    {{ report.llm_insight or 'No AI insight available.' }}
+                </div>
+                
+                <h5 class="card-title mb-3">Potential Objective Summary</h5>
+                <div class="p-3 bg-light rounded mb-4">
+                    {{ report.potential_objective_summary or 'No objective summary available.' }}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Objectives Section -->
+        <div class="card mb-4">
+            <div class="card-header bg-info">
+                <h5 class="mb-0">Audit Objectives</h5>
+            </div>
+            <div class="card-body">
+                {% if report.objectives %}
+                <div class="list-group">
+                    {% for objective in report.objectives %}
+                    <div class="list-group-item">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">Objective {{ loop.index }}</h6>
+                        </div>
+                        <p class="mb-0">{{ objective.objective_text }}</p>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="alert alert-secondary">
+                    No objectives found for this audit report.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Findings Section -->
+        <div class="card mb-4">
+            <div class="card-header bg-warning">
+                <h5 class="mb-0">Audit Findings</h5>
+            </div>
+            <div class="card-body">
+                {% if report.findings %}
+                <div class="list-group">
+                    {% for finding in report.findings %}
+                    <div class="list-group-item">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">Finding {{ loop.index }}</h6>
+                            {% if finding.financial_impact %}
+                            <span class="badge bg-danger">Financial Impact: ${{ "{:,.2f}".format(finding.financial_impact) }}</span>
+                            {% endif %}
+                        </div>
+                        <p class="mb-0">{{ finding.finding_text }}</p>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="alert alert-secondary">
+                    No findings reported for this audit.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Recommendations Section -->
+        <div class="card mb-4">
+            <div class="card-header bg-success">
+                <h5 class="mb-0">Audit Recommendations</h5>
+            </div>
+            <div class="card-body">
+                {% if report.recommendations %}
+                <div class="list-group">
+                    {% for recommendation in report.recommendations %}
+                    <div class="list-group-item">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">Recommendation {{ loop.index }}</h6>
+                        </div>
+                        <p class="mb-0">{{ recommendation.recommendation_text }}</p>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="alert alert-secondary">
+                    No recommendations provided for this audit.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Keywords Section -->
+        <div class="card">
+            <div class="card-header bg-secondary">
+                <h5 class="mb-0">Keywords</h5>
+            </div>
+            <div class="card-body">
+                {% if report.keywords %}
+                <div class="d-flex flex-wrap gap-2">
+                    {% for keyword in report.keywords %}
+                    <span class="badge bg-primary">{{ keyword.keyword_text }}</span>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="alert alert-secondary">
+                    No keywords available for this report.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

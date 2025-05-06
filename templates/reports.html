@@ -70,10 +70,7 @@
                                         <a href="{{ url_for('report_edit', report_id=report.id) }}" class="btn btn-sm btn-outline-secondary">
                                             <i class="fas fa-edit"></i>
                                         </a>
-                                        <a href="{{ url_for('serve_pdf', filename=report.pdf_storage_path.split('/')[-1]) }}" 
-                                           class="btn btn-sm btn-outline-info" target="_blank">
-                                            <i class="fas fa-file-pdf"></i>
-                                        </a>
+                                        <!-- PDF viewer removed as per requirements -->
                                     </div>
                                 </td>
                             </tr>
