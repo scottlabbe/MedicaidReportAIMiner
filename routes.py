@@ -3,14 +3,14 @@ import io
 import json
 import hashlib
 import logging
-from flask import render_template, request, redirect, url_for, flash, jsonify, current_app, send_from_directory
+from flask import render_template, request, redirect, url_for, flash, jsonify, current_app
 from werkzeug.utils import secure_filename
 from app import db
 from models import Report, Finding, Recommendation, Objective, Keyword, AIProcessingLog
 from utils.pdf_utils import (
-    extract_text_from_pdf, extract_text_from_pdf_memory,
-    extract_keywords_from_pdf_metadata, extract_keywords_from_pdf_metadata_memory,
-    process_keywords
+    extract_text_from_pdf_memory,
+    extract_keywords_from_pdf_metadata_memory,
+    process_keywords, process_uploaded_file_memory
 )
 from utils.ai_extraction import extract_data_with_openai
 from utils.db_utils import check_duplicate_report, save_report_to_db, update_report_in_db
@@ -65,12 +65,7 @@ def register_routes(app):
                 
                 try:
                     # Process the file in memory without saving to disk
-                    file_content = file.read()
-                    file_size = len(file_content)
-                    filename = secure_filename(file.filename)
-                    
-                    # Calculate file hash from memory
-                    file_hash = hashlib.sha256(file_content).hexdigest()
+                    filename, file_size, file_hash, file_content = process_uploaded_file_memory(file)
                     
                     # Check for duplicates
                     is_duplicate, existing_report, reason = check_duplicate_report(file_hash, filename)
@@ -318,7 +313,4 @@ def register_routes(app):
                 'error': str(e)
             }), 500
     
-    @app.route('/uploads/<path:filename>')
-    def serve_pdf(filename):
-        """Serve uploaded PDF files"""
-        return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+    # PDF serving endpoint removed as we no longer store PDFs on disk

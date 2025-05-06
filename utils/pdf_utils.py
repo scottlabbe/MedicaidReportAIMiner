@@ -164,37 +164,32 @@ def process_keywords(pdf_keywords, ai_keywords):
     
     return unique_keywords
 
-def save_uploaded_file(file, upload_folder):
+def process_uploaded_file_memory(file):
     """
-    Save an uploaded file to the specified folder.
+    Process an uploaded file in memory without saving to disk.
     
     Args:
         file: FileStorage object from Flask's request.files
-        upload_folder: Folder to save the file to
         
     Returns:
-        tuple: (secure filename, file path, file size in bytes, file hash)
+        tuple: (secure filename, file size in bytes, file hash, file content)
     """
     try:
         # Create secure filename
         filename = secure_filename(file.filename)
         
-        # Ensure upload folder exists
-        os.makedirs(upload_folder, exist_ok=True)
-        
-        # Create complete file path
-        file_path = os.path.join(upload_folder, filename)
-        
-        # Save the file
-        file.save(file_path)
+        # Read file content
+        file_content = file.read()
         
         # Get file size in bytes
-        file_size = os.path.getsize(file_path)
+        file_size = len(file_content)
         
         # Calculate file hash
-        file_hash = get_file_hash(file_path)
+        sha256_hash = hashlib.sha256()
+        sha256_hash.update(file_content)
+        file_hash = sha256_hash.hexdigest()
         
-        return (filename, file_path, file_size, file_hash)
+        return (filename, file_size, file_hash, file_content)
     except Exception as e:
-        logging.error(f"Error saving uploaded file: {e}")
-        raise ValueError(f"Failed to save uploaded file: {e}")
+        logging.error(f"Error processing uploaded file: {e}")
+        raise ValueError(f"Failed to process uploaded file: {e}")
