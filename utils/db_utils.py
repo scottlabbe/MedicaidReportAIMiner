@@ -44,18 +44,21 @@ def save_report_to_db(report_data, file_metadata, ai_log):
         filename, file_path, file_size, file_hash = file_metadata
         
         # Create a new Report object
+        # Handle both attribute access (Pydantic) and dictionary access patterns
+        is_dict = isinstance(report_data, dict)
+        
         report = Report(
-            report_title=report_data.report_title,
-            audit_organization=report_data.audit_organization,
-            publication_year=report_data.publication_year,
-            publication_month=report_data.publication_month,
-            publication_day=report_data.publication_day,
-            overall_conclusion=report_data.overall_conclusion,
-            llm_insight=report_data.llm_insight,
-            potential_objective_summary=report_data.potential_objective_summary,
-            original_report_source_url=report_data.original_report_source_url,
-            state=report_data.state,
-            audit_scope=report_data.audit_scope,
+            report_title=report_data['report_title'] if is_dict else report_data.report_title,
+            audit_organization=report_data['audit_organization'] if is_dict else report_data.audit_organization,
+            publication_year=report_data['publication_year'] if is_dict else report_data.publication_year,
+            publication_month=report_data['publication_month'] if is_dict else report_data.publication_month,
+            publication_day=report_data['publication_day'] if is_dict else report_data.publication_day,
+            overall_conclusion=report_data['overall_conclusion'] if is_dict else report_data.overall_conclusion,
+            llm_insight=report_data['llm_insight'] if is_dict else report_data.llm_insight,
+            potential_objective_summary=report_data['potential_objective_summary'] if is_dict else report_data.potential_objective_summary,
+            original_report_source_url=report_data['original_report_source_url'] if is_dict else report_data.original_report_source_url,
+            state=report_data['state'] if is_dict else report_data.state,
+            audit_scope=report_data['audit_scope'] if is_dict else report_data.audit_scope,
             original_filename=filename,
             file_hash=file_hash,
             pdf_storage_path=file_path,
@@ -69,37 +72,70 @@ def save_report_to_db(report_data, file_metadata, ai_log):
         db.session.flush()  # Flush to get the report ID
         
         # Add objectives
-        for obj in report_data.objectives:
-            objective = Objective(
-                report_id=report.id,
-                objective_text=obj.objective_text
-            )
-            db.session.add(objective)
+        if is_dict:
+            for obj in report_data['objectives']:
+                objective = Objective(
+                    report_id=report.id,
+                    objective_text=obj['objective_text']
+                )
+                db.session.add(objective)
+        else:
+            for obj in report_data.objectives:
+                objective = Objective(
+                    report_id=report.id,
+                    objective_text=obj.objective_text
+                )
+                db.session.add(objective)
         
         # Add findings
-        for idx, f in enumerate(report_data.findings):
-            finding = Finding(
-                report_id=report.id,
-                finding_text=f.finding_text,
-                financial_impact=f.financial_impact
-            )
-            db.session.add(finding)
+        if is_dict:
+            for idx, f in enumerate(report_data['findings']):
+                finding = Finding(
+                    report_id=report.id,
+                    finding_text=f['finding_text'],
+                    financial_impact=f.get('financial_impact')
+                )
+                db.session.add(finding)
+        else:
+            for idx, f in enumerate(report_data.findings):
+                finding = Finding(
+                    report_id=report.id,
+                    finding_text=f.finding_text,
+                    financial_impact=f.financial_impact
+                )
+                db.session.add(finding)
         
         # Add recommendations
-        for rec in report_data.recommendations:
-            recommendation = Recommendation(
-                report_id=report.id,
-                recommendation_text=rec.recommendation_text
-            )
-            db.session.add(recommendation)
+        if is_dict:
+            for rec in report_data['recommendations']:
+                recommendation = Recommendation(
+                    report_id=report.id,
+                    recommendation_text=rec['recommendation_text']
+                )
+                db.session.add(recommendation)
+        else:
+            for rec in report_data.recommendations:
+                recommendation = Recommendation(
+                    report_id=report.id,
+                    recommendation_text=rec.recommendation_text
+                )
+                db.session.add(recommendation)
         
         # Add keywords
-        for kw in report_data.extracted_keywords:
-            keyword = Keyword(
-                report_id=report.id,
-                keyword_text=kw
-            )
-            db.session.add(keyword)
+        if is_dict:
+            for kw in report_data['extracted_keywords']:
+                keyword = Keyword(
+                    report_id=report.id,
+                    keyword_text=kw
+                )
+                db.session.add(keyword)
+        else:
+            for kw in report_data.extracted_keywords:
+                keyword = Keyword(
+                    report_id=report.id,
+                    keyword_text=kw
+                )
+                db.session.add(keyword)
         
         # Add AI processing log
         ai_processing_log = AIProcessingLog(
