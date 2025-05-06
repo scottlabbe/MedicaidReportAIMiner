@@ -226,8 +226,7 @@ def register_routes(app):
         return render_template('review.html', 
                             report_data=report_data,
                             ai_log=ai_log,
-                            temp_id=temp_id,
-                            pdf_path=file_metadata[1])
+                            temp_id=temp_id)
     
     @app.route('/reports')
     def reports():

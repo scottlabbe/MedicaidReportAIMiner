@@ -19,10 +19,9 @@ class Report(db.Model):
     state = Column(String(2))
     audit_scope = Column(Text)
     
-    # PDF and system metadata
+    # File metadata (no PDF storage)
     original_filename = Column(String(255), nullable=False)
     file_hash = Column(String(64), nullable=False, unique=True)
-    pdf_storage_path = Column(String(255), nullable=False)
     file_size_bytes = Column(Integer, nullable=False)
     featured = Column(Boolean, default=False)
     status = Column(String(50), default='processing')

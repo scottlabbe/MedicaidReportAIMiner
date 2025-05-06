@@ -33,7 +33,7 @@ def save_report_to_db(report_data, file_metadata, ai_log):
     
     Args:
         report_data: Extracted report data (ReportData object)
-        file_metadata: Tuple of (filename, file_path, file_size, file_hash)
+        file_metadata: Tuple of (filename, file_size, file_hash)
         ai_log: AI extraction log data (AIExtractionLog object)
         
     Returns:
@@ -41,7 +41,7 @@ def save_report_to_db(report_data, file_metadata, ai_log):
     """
     try:
         # Start a transaction
-        filename, file_path, file_size, file_hash = file_metadata
+        filename, file_size, file_hash = file_metadata
         
         # Create a new Report object
         # Handle both attribute access (Pydantic) and dictionary access patterns
@@ -61,7 +61,6 @@ def save_report_to_db(report_data, file_metadata, ai_log):
             audit_scope=report_data['audit_scope'] if is_dict else report_data.audit_scope,
             original_filename=filename,
             file_hash=file_hash,
-            pdf_storage_path=file_path,
             file_size_bytes=file_size,
             status='published',
             processing_status='extracted'
