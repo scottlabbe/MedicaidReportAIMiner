@@ -23,11 +23,8 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_pre_ping": True,
 }
 
-# Configure upload folder for PDFs
-app.config['UPLOAD_FOLDER'] = os.path.join(os.getcwd(), 'uploads')
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-
 # Maximum content length for file uploads (50MB)
+# Note: PDFs are now processed entirely in memory without being saved to disk
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
 
 # Initialize the app with the db extension
