@@ -8,9 +8,9 @@ from typing import List, Optional
 from pydantic import BaseModel, Field
 from openai import OpenAI
 
-# the newest OpenAI model is "gpt-4o" which was released May 13, 2024.
-# do not change this unless explicitly requested by the user
-OPENAI_MODEL = "gpt-4o"
+# Using gpt-4.1-nano model as explicitly requested by the user
+# Changed from gpt-4o as per user request
+OPENAI_MODEL = "gpt-4.1-nano"
 
 class Finding(BaseModel):
     finding_text: str = Field(..., description="The text of the finding from the audit report")
