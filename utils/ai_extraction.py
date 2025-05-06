@@ -38,8 +38,8 @@ class ReportData(BaseModel):
     original_report_source_url: Optional[str] = Field(None, description="URL to the original report, if available")
     state: Optional[str] = Field(None, description="The US state code related to the report (e.g., 'NY', 'CA')")
     total_financial_impact: Optional[float] = Field(None, description="The total financial impact in dollars for the whole report")
-    audit_period_start_date: Optional[datetime] = Field(None, description="The start date of the audit period")
-    audit_period_end_date: Optional[datetime] = Field(None, description="The end date of the audit period")
+    audit_period_start_date: Optional[str] = Field(None, description="The start date of the audit period in YYYY-MM-DD format")
+    audit_period_end_date: Optional[str] = Field(None, description="The end date of the audit period in YYYY-MM-DD format")
     audit_period_description: Optional[str] = Field(None, description="Text description of the audit period")
     extracted_keywords: List[str] = Field([], description="Relevant keywords extracted from the report content")
 
