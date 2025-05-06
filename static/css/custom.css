@@ -1,0 +1,82 @@
+/* Custom CSS for the Medicaid Audit Report Analyzer */
+
+/* Add box shadow to cards for a subtle lift effect */
+.card {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    margin-bottom: 1.5rem;
+}
+
+/* Improve form appearance */
+.form-label {
+    font-weight: 500;
+}
+
+/* Add subtle hover effect to list items */
+.list-group-item {
+    transition: background-color 0.2s ease;
+}
+
+.list-group-item:hover {
+    background-color: rgba(13, 110, 253, 0.05);
+}
+
+/* Dashboard card styles */
+.card-title {
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+.display-4 {
+    font-weight: 700;
+}
+
+/* Style for file upload drop zone */
+.drop-zone {
+    transition: all 0.3s ease;
+}
+
+.drop-zone:hover {
+    background-color: rgba(25, 135, 84, 0.05);
+}
+
+.drop-zone.active {
+    background-color: rgba(25, 135, 84, 0.1);
+    border-color: #198754;
+}
+
+/* Style for review page layout */
+.pdf-container {
+    background-color: #f8f9fa;
+    border-radius: 0.25rem;
+}
+
+/* Styling for keyword badges */
+.keyword-item {
+    font-size: 0.9rem;
+    padding: 0.35rem 0.65rem;
+    transition: all 0.2s ease;
+}
+
+.keyword-item:hover {
+    background-color: #5a6268;
+}
+
+.keyword-item .remove-keyword:hover {
+    color: #ff6b6b;
+}
+
+/* Improvements for tabs in review page */
+.nav-tabs .nav-link {
+    padding: 0.75rem 1rem;
+    font-weight: 500;
+}
+
+.nav-tabs .nav-link.active {
+    font-weight: 600;
+}
+
+/* Footer styling */
+.footer {
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    margin-top: 2rem;
+}

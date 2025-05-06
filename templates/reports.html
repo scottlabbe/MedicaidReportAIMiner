@@ -1,0 +1,170 @@
+{% extends "layout.html" %}
+
+{% block head_content %}
+<title>Reports - Medicaid Audit Report Analyzer</title>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>
+                <i class="fas fa-folder-open me-2"></i>
+                Audit Reports
+            </h1>
+            <a href="{{ url_for('upload') }}" class="btn btn-success">
+                <i class="fas fa-upload me-1"></i> Upload New Reports
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-primary">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">All Reports</h5>
+                    <span class="badge bg-secondary">{{ reports.total }} Reports</span>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if reports.items %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Organization</th>
+                                <th>State</th>
+                                <th>Publication Date</th>
+                                <th>Featured</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for report in reports.items %}
+                            <tr>
+                                <td>{{ report.report_title }}</td>
+                                <td>{{ report.audit_organization }}</td>
+                                <td>
+                                    {% if report.state %}
+                                    <span class="badge bg-info">{{ report.state }}</span>
+                                    {% else %}
+                                    <span class="text-muted">N/A</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ report.publication_month }}/{{ report.publication_day|default('--') }}/{{ report.publication_year }}</td>
+                                <td>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input featured-toggle" type="checkbox" role="switch" 
+                                               data-report-id="{{ report.id }}" 
+                                               {% if report.featured %}checked{% endif %}>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a href="{{ url_for('report_detail', report_id=report.id) }}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="{{ url_for('report_edit', report_id=report.id) }}" class="btn btn-sm btn-outline-secondary">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <a href="{{ url_for('serve_pdf', filename=report.pdf_storage_path.split('/')[-1]) }}" 
+                                           class="btn btn-sm btn-outline-info" target="_blank">
+                                            <i class="fas fa-file-pdf"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Pagination -->
+                <nav aria-label="Report navigation">
+                    <ul class="pagination justify-content-center">
+                        {% if reports.has_prev %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('reports', page=reports.prev_num) }}">Previous</a>
+                        </li>
+                        {% else %}
+                        <li class="page-item disabled">
+                            <a class="page-link" href="#" tabindex="-1" aria-disabled="true">Previous</a>
+                        </li>
+                        {% endif %}
+                        
+                        {% for page in reports.iter_pages(left_edge=2, right_edge=2, left_current=1, right_current=2) %}
+                            {% if page %}
+                                {% if page == reports.page %}
+                                <li class="page-item active">
+                                    <a class="page-link" href="{{ url_for('reports', page=page) }}">{{ page }}</a>
+                                </li>
+                                {% else %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('reports', page=page) }}">{{ page }}</a>
+                                </li>
+                                {% endif %}
+                            {% else %}
+                                <li class="page-item disabled">
+                                    <a class="page-link" href="#">...</a>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if reports.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('reports', page=reports.next_num) }}">Next</a>
+                        </li>
+                        {% else %}
+                        <li class="page-item disabled">
+                            <a class="page-link" href="#" tabindex="-1" aria-disabled="true">Next</a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% else %}
+                <div class="alert alert-info">
+                    <p class="mb-0">No reports have been added yet. <a href="{{ url_for('upload') }}">Upload your first report</a>.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Toggle featured status
+    document.querySelectorAll('.featured-toggle').forEach(toggle => {
+        toggle.addEventListener('change', function() {
+            const reportId = this.getAttribute('data-report-id');
+            
+            // Send request to toggle featured status
+            fetch(`/report/${reportId}/toggle_featured`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success) {
+                    console.error('Error toggling featured status:', data.error);
+                    // Revert the toggle if there was an error
+                    this.checked = !this.checked;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                // Revert the toggle if there was an error
+                this.checked = !this.checked;
+            });
+        });
+    });
+});
+</script>
+{% endblock %}

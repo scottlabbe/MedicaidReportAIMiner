@@ -1,0 +1,607 @@
+{% extends "layout.html" %}
+
+{% block head_content %}
+<title>Review Extraction - Medicaid Audit Report Analyzer</title>
+<style>
+    .pdf-container {
+        height: 800px;
+        overflow-y: auto;
+        border: 1px solid #6c757d;
+        border-radius: 5px;
+    }
+    
+    #pdfViewer {
+        width: 100%;
+        height: 100%;
+    }
+    
+    .form-section {
+        margin-bottom: 2rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .list-item {
+        margin-bottom: 1rem;
+        padding: 0.75rem;
+        border: 1px solid #dee2e6;
+        border-radius: 5px;
+        position: relative;
+    }
+    
+    .remove-item {
+        position: absolute;
+        top: 0.25rem;
+        right: 0.25rem;
+    }
+    
+    .extraction-metadata {
+        font-size: 0.85rem;
+    }
+    
+    .nav-tabs {
+        margin-bottom: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12 mb-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <h1>
+                <i class="fas fa-check-square me-2"></i>
+                Review Extraction
+            </h1>
+            <a href="{{ url_for('upload') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i> Back to Upload
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- PDF Viewer -->
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header bg-primary">
+                <h5 class="mb-0">Original PDF</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="pdf-container">
+                    <div id="pdfViewer"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Extracted Data Form -->
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header bg-success">
+                <h5 class="mb-0">Extracted Data</h5>
+            </div>
+            <div class="card-body">
+                <ul class="nav nav-tabs" id="extractionTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="basic-tab" data-bs-toggle="tab" data-bs-target="#basic" type="button" role="tab" aria-controls="basic" aria-selected="true">Basic Info</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="objectives-tab" data-bs-toggle="tab" data-bs-target="#objectives" type="button" role="tab" aria-controls="objectives" aria-selected="false">Objectives</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="findings-tab" data-bs-toggle="tab" data-bs-target="#findings" type="button" role="tab" aria-controls="findings" aria-selected="false">Findings</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="recommendations-tab" data-bs-toggle="tab" data-bs-target="#recommendations" type="button" role="tab" aria-controls="recommendations" aria-selected="false">Recommendations</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="keywords-tab" data-bs-toggle="tab" data-bs-target="#keywords" type="button" role="tab" aria-controls="keywords" aria-selected="false">Keywords</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="ai-info-tab" data-bs-toggle="tab" data-bs-target="#ai-info" type="button" role="tab" aria-controls="ai-info" aria-selected="false">AI Info</button>
+                    </li>
+                </ul>
+                
+                <form id="extractionForm" action="{{ url_for('review', temp_id=temp_id) }}" method="POST">
+                    <input type="hidden" name="report_data" id="reportDataJson">
+                    
+                    <div class="tab-content" id="extractionTabsContent">
+                        <!-- Basic Info Tab -->
+                        <div class="tab-pane fade show active" id="basic" role="tabpanel" aria-labelledby="basic-tab">
+                            <div class="form-section">
+                                <div class="mb-3">
+                                    <label for="report_title" class="form-label">Report Title</label>
+                                    <input type="text" class="form-control" id="report_title" value="{{ report_data.report_title }}" required>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="audit_organization" class="form-label">Audit Organization</label>
+                                        <input type="text" class="form-control" id="audit_organization" value="{{ report_data.audit_organization }}" required>
+                                    </div>
+                                    
+                                    <div class="col-md-6 mb-3">
+                                        <label for="state" class="form-label">State</label>
+                                        <input type="text" class="form-control" id="state" value="{{ report_data.state }}">
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-4 mb-3">
+                                        <label for="publication_year" class="form-label">Publication Year</label>
+                                        <input type="number" class="form-control" id="publication_year" value="{{ report_data.publication_year }}" required>
+                                    </div>
+                                    
+                                    <div class="col-md-4 mb-3">
+                                        <label for="publication_month" class="form-label">Publication Month</label>
+                                        <input type="number" class="form-control" id="publication_month" value="{{ report_data.publication_month }}" min="1" max="12" required>
+                                    </div>
+                                    
+                                    <div class="col-md-4 mb-3">
+                                        <label for="publication_day" class="form-label">Publication Day</label>
+                                        <input type="number" class="form-control" id="publication_day" value="{{ report_data.publication_day }}" min="1" max="31">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="form-section">
+                                <div class="mb-3">
+                                    <label for="overall_conclusion" class="form-label">Overall Conclusion</label>
+                                    <textarea class="form-control" id="overall_conclusion" rows="3">{{ report_data.overall_conclusion }}</textarea>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="llm_insight" class="form-label">AI-Generated Insight</label>
+                                    <textarea class="form-control" id="llm_insight" rows="3">{{ report_data.llm_insight }}</textarea>
+                                </div>
+                            </div>
+                            
+                            <div class="form-section">
+                                <div class="mb-3">
+                                    <label for="total_financial_impact" class="form-label">Total Financial Impact ($)</label>
+                                    <input type="number" class="form-control" id="total_financial_impact" value="{{ report_data.total_financial_impact }}" step="0.01">
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="original_report_source_url" class="form-label">Original Report URL</label>
+                                    <input type="url" class="form-control" id="original_report_source_url" value="{{ report_data.original_report_source_url }}">
+                                </div>
+                            </div>
+                            
+                            <div class="form-section">
+                                <h6>Audit Period</h6>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="audit_period_start_date" class="form-label">Start Date</label>
+                                        <input type="date" class="form-control" id="audit_period_start_date" value="{{ report_data.audit_period_start_date.strftime('%Y-%m-%d') if report_data.audit_period_start_date else '' }}">
+                                    </div>
+                                    
+                                    <div class="col-md-6 mb-3">
+                                        <label for="audit_period_end_date" class="form-label">End Date</label>
+                                        <input type="date" class="form-control" id="audit_period_end_date" value="{{ report_data.audit_period_end_date.strftime('%Y-%m-%d') if report_data.audit_period_end_date else '' }}">
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="audit_period_description" class="form-label">Period Description</label>
+                                    <input type="text" class="form-control" id="audit_period_description" value="{{ report_data.audit_period_description }}">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Objectives Tab -->
+                        <div class="tab-pane fade" id="objectives" role="tabpanel" aria-labelledby="objectives-tab">
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h5>Audit Objectives</h5>
+                                    <button type="button" class="btn btn-sm btn-success" id="addObjectiveBtn">
+                                        <i class="fas fa-plus"></i> Add Objective
+                                    </button>
+                                </div>
+                                
+                                <div id="objectivesList" class="mt-3">
+                                    {% for objective in report_data.objectives %}
+                                    <div class="list-item objective-item">
+                                        <button type="button" class="btn btn-sm btn-danger remove-item">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                        <div class="mb-3">
+                                            <label class="form-label">Objective Text</label>
+                                            <textarea class="form-control objective-text" rows="2">{{ objective.objective_text }}</textarea>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Findings Tab -->
+                        <div class="tab-pane fade" id="findings" role="tabpanel" aria-labelledby="findings-tab">
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h5>Audit Findings</h5>
+                                    <button type="button" class="btn btn-sm btn-success" id="addFindingBtn">
+                                        <i class="fas fa-plus"></i> Add Finding
+                                    </button>
+                                </div>
+                                
+                                <div id="findingsList" class="mt-3">
+                                    {% for finding in report_data.findings %}
+                                    <div class="list-item finding-item">
+                                        <button type="button" class="btn btn-sm btn-danger remove-item">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                        <div class="mb-3">
+                                            <label class="form-label">Finding Text</label>
+                                            <textarea class="form-control finding-text" rows="2">{{ finding.finding_text }}</textarea>
+                                        </div>
+                                        <div class="mb-0">
+                                            <label class="form-label">Financial Impact ($)</label>
+                                            <input type="number" class="form-control financial-impact" value="{{ finding.financial_impact }}" step="0.01">
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Recommendations Tab -->
+                        <div class="tab-pane fade" id="recommendations" role="tabpanel" aria-labelledby="recommendations-tab">
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h5>Audit Recommendations</h5>
+                                    <button type="button" class="btn btn-sm btn-success" id="addRecommendationBtn">
+                                        <i class="fas fa-plus"></i> Add Recommendation
+                                    </button>
+                                </div>
+                                
+                                <div id="recommendationsList" class="mt-3">
+                                    {% for recommendation in report_data.recommendations %}
+                                    <div class="list-item recommendation-item">
+                                        <button type="button" class="btn btn-sm btn-danger remove-item">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                        <div class="mb-0">
+                                            <label class="form-label">Recommendation Text</label>
+                                            <textarea class="form-control recommendation-text" rows="2">{{ recommendation.recommendation_text }}</textarea>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Keywords Tab -->
+                        <div class="tab-pane fade" id="keywords" role="tabpanel" aria-labelledby="keywords-tab">
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h5>Keywords</h5>
+                                    <button type="button" class="btn btn-sm btn-success" id="addKeywordBtn">
+                                        <i class="fas fa-plus"></i> Add Keyword
+                                    </button>
+                                </div>
+                                
+                                <p class="text-muted">Enter keywords separated by commas or add individually.</p>
+                                
+                                <div class="mb-3">
+                                    <label for="keywordInput" class="form-label">Enter Multiple Keywords</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" id="keywordInput" placeholder="Enter keywords separated by commas">
+                                        <button class="btn btn-outline-secondary" type="button" id="addMultipleKeywordsBtn">Add</button>
+                                    </div>
+                                </div>
+                                
+                                <div id="keywordsList" class="mt-3">
+                                    {% for keyword in report_data.extracted_keywords %}
+                                    <span class="badge bg-secondary keyword-item me-2 mb-2 p-2">
+                                        {{ keyword }}
+                                        <i class="fas fa-times ms-1 remove-keyword" style="cursor: pointer;"></i>
+                                    </span>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- AI Info Tab -->
+                        <div class="tab-pane fade" id="ai-info" role="tabpanel" aria-labelledby="ai-info-tab">
+                            <div class="mb-3">
+                                <h5>AI Processing Information</h5>
+                                
+                                <div class="table-responsive">
+                                    <table class="table table-bordered">
+                                        <tbody>
+                                            <tr>
+                                                <th scope="row">Model Used</th>
+                                                <td>{{ ai_log.model_name }}</td>
+                                            </tr>
+                                            <tr>
+                                                <th scope="row">Processing Time</th>
+                                                <td>{{ ai_log.processing_time_ms }} ms</td>
+                                            </tr>
+                                            <tr>
+                                                <th scope="row">Tokens Used</th>
+                                                <td>{{ ai_log.total_tokens }} (Input: {{ ai_log.input_tokens }}, Output: {{ ai_log.output_tokens }})</td>
+                                            </tr>
+                                            <tr>
+                                                <th scope="row">Estimated Cost</th>
+                                                <td>${{ "%.4f"|format(ai_log.total_cost) }}</td>
+                                            </tr>
+                                            <tr>
+                                                <th scope="row">Extraction Status</th>
+                                                <td>
+                                                    <span class="badge bg-{{ 'success' if ai_log.extraction_status == 'SUCCESS' else 'danger' }}">
+                                                        {{ ai_log.extraction_status }}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                            {% if ai_log.error_details %}
+                                            <tr>
+                                                <th scope="row">Error Details</th>
+                                                <td>{{ ai_log.error_details }}</td>
+                                            </tr>
+                                            {% endif %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-actions mt-4">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-save me-1"></i> Save Report to Database
+                        </button>
+                        <a href="{{ url_for('upload') }}" class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/review.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Load and display PDF
+    const pdfUrl = "{{ url_for('serve_pdf', filename=pdf_path.split('/')[-1]) }}";
+    
+    // Initialize PDF.js
+    const pdfViewer = document.getElementById('pdfViewer');
+    
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+    
+    // Load PDF
+    pdfjsLib.getDocument(pdfUrl).promise.then(function(pdf) {
+        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+            renderPage(pdf, pageNum);
+        }
+    }).catch(function(error) {
+        console.error('Error loading PDF:', error);
+        pdfViewer.innerHTML = '<div class="alert alert-danger m-3">Error loading PDF: ' + error.message + '</div>';
+    });
+    
+    function renderPage(pdf, pageNumber) {
+        pdf.getPage(pageNumber).then(function(page) {
+            const viewport = page.getViewport({ scale: 1.5 });
+            
+            // Create a canvas for each page
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+            
+            // Add page number indicator
+            const pageDiv = document.createElement('div');
+            pageDiv.className = 'pdf-page';
+            pageDiv.innerHTML = `<div class="text-center text-muted my-2">Page ${pageNumber}</div>`;
+            
+            pdfViewer.appendChild(pageDiv);
+            pageDiv.appendChild(canvas);
+            
+            // Render the page
+            const renderContext = {
+                canvasContext: context,
+                viewport: viewport
+            };
+            
+            page.render(renderContext);
+        });
+    }
+    
+    // Form handling
+    const form = document.getElementById('extractionForm');
+    
+    // Add event listeners for "Add" buttons
+    document.getElementById('addObjectiveBtn').addEventListener('click', function() {
+        addObjective('');
+    });
+    
+    document.getElementById('addFindingBtn').addEventListener('click', function() {
+        addFinding('', null);
+    });
+    
+    document.getElementById('addRecommendationBtn').addEventListener('click', function() {
+        addRecommendation('');
+    });
+    
+    document.getElementById('addKeywordBtn').addEventListener('click', function() {
+        const newKeyword = prompt('Enter a new keyword:');
+        if (newKeyword && newKeyword.trim()) {
+            addKeyword(newKeyword.trim());
+        }
+    });
+    
+    document.getElementById('addMultipleKeywordsBtn').addEventListener('click', function() {
+        const keywordInput = document.getElementById('keywordInput');
+        const keywords = keywordInput.value.split(',').map(k => k.trim()).filter(k => k);
+        
+        keywords.forEach(keyword => {
+            addKeyword(keyword);
+        });
+        
+        keywordInput.value = '';
+    });
+    
+    // Add handlers for remove buttons
+    document.querySelectorAll('.remove-item').forEach(btn => {
+        btn.addEventListener('click', function() {
+            this.closest('.list-item').remove();
+        });
+    });
+    
+    document.querySelectorAll('.remove-keyword').forEach(icon => {
+        icon.addEventListener('click', function() {
+            this.closest('.keyword-item').remove();
+        });
+    });
+    
+    // Add new objective function
+    function addObjective(text) {
+        const objectivesList = document.getElementById('objectivesList');
+        
+        const div = document.createElement('div');
+        div.className = 'list-item objective-item';
+        div.innerHTML = `
+            <button type="button" class="btn btn-sm btn-danger remove-item">
+                <i class="fas fa-times"></i>
+            </button>
+            <div class="mb-3">
+                <label class="form-label">Objective Text</label>
+                <textarea class="form-control objective-text" rows="2">${text}</textarea>
+            </div>
+        `;
+        
+        objectivesList.appendChild(div);
+        
+        // Add event listener for remove button
+        div.querySelector('.remove-item').addEventListener('click', function() {
+            div.remove();
+        });
+    }
+    
+    // Add new finding function
+    function addFinding(text, financialImpact) {
+        const findingsList = document.getElementById('findingsList');
+        
+        const div = document.createElement('div');
+        div.className = 'list-item finding-item';
+        div.innerHTML = `
+            <button type="button" class="btn btn-sm btn-danger remove-item">
+                <i class="fas fa-times"></i>
+            </button>
+            <div class="mb-3">
+                <label class="form-label">Finding Text</label>
+                <textarea class="form-control finding-text" rows="2">${text}</textarea>
+            </div>
+            <div class="mb-0">
+                <label class="form-label">Financial Impact ($)</label>
+                <input type="number" class="form-control financial-impact" value="${financialImpact || ''}" step="0.01">
+            </div>
+        `;
+        
+        findingsList.appendChild(div);
+        
+        // Add event listener for remove button
+        div.querySelector('.remove-item').addEventListener('click', function() {
+            div.remove();
+        });
+    }
+    
+    // Add new recommendation function
+    function addRecommendation(text) {
+        const recommendationsList = document.getElementById('recommendationsList');
+        
+        const div = document.createElement('div');
+        div.className = 'list-item recommendation-item';
+        div.innerHTML = `
+            <button type="button" class="btn btn-sm btn-danger remove-item">
+                <i class="fas fa-times"></i>
+            </button>
+            <div class="mb-0">
+                <label class="form-label">Recommendation Text</label>
+                <textarea class="form-control recommendation-text" rows="2">${text}</textarea>
+            </div>
+        `;
+        
+        recommendationsList.appendChild(div);
+        
+        // Add event listener for remove button
+        div.querySelector('.remove-item').addEventListener('click', function() {
+            div.remove();
+        });
+    }
+    
+    // Add new keyword function
+    function addKeyword(text) {
+        const keywordsList = document.getElementById('keywordsList');
+        
+        const span = document.createElement('span');
+        span.className = 'badge bg-secondary keyword-item me-2 mb-2 p-2';
+        span.innerHTML = `
+            ${text}
+            <i class="fas fa-times ms-1 remove-keyword" style="cursor: pointer;"></i>
+        `;
+        
+        keywordsList.appendChild(span);
+        
+        // Add event listener for remove icon
+        span.querySelector('.remove-keyword').addEventListener('click', function() {
+            span.remove();
+        });
+    }
+    
+    // Form submission
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // Collect form data
+        const reportData = {
+            report_title: document.getElementById('report_title').value,
+            audit_organization: document.getElementById('audit_organization').value,
+            publication_year: parseInt(document.getElementById('publication_year').value),
+            publication_month: parseInt(document.getElementById('publication_month').value),
+            publication_day: document.getElementById('publication_day').value ? parseInt(document.getElementById('publication_day').value) : null,
+            overall_conclusion: document.getElementById('overall_conclusion').value,
+            llm_insight: document.getElementById('llm_insight').value,
+            potential_objective_summary: document.getElementById('potential_objective_summary')?.value || null,
+            original_report_source_url: document.getElementById('original_report_source_url').value || null,
+            state: document.getElementById('state').value || null,
+            total_financial_impact: document.getElementById('total_financial_impact').value ? parseFloat(document.getElementById('total_financial_impact').value) : null,
+            audit_period_start_date: document.getElementById('audit_period_start_date').value || null,
+            audit_period_end_date: document.getElementById('audit_period_end_date').value || null,
+            audit_period_description: document.getElementById('audit_period_description').value || null,
+            
+            // Get objectives
+            objectives: Array.from(document.querySelectorAll('.objective-item')).map(item => ({
+                objective_text: item.querySelector('.objective-text').value
+            })),
+            
+            // Get findings
+            findings: Array.from(document.querySelectorAll('.finding-item')).map(item => ({
+                finding_text: item.querySelector('.finding-text').value,
+                financial_impact: item.querySelector('.financial-impact').value ? parseFloat(item.querySelector('.financial-impact').value) : null
+            })),
+            
+            // Get recommendations
+            recommendations: Array.from(document.querySelectorAll('.recommendation-item')).map(item => ({
+                recommendation_text: item.querySelector('.recommendation-text').value
+            })),
+            
+            // Get keywords
+            extracted_keywords: Array.from(document.querySelectorAll('.keyword-item')).map(item => {
+                return item.textContent.trim();
+            })
+        };
+        
+        // Set JSON data in hidden field
+        document.getElementById('reportDataJson').value = JSON.stringify(reportData);
+        
+        // Submit the form
+        form.submit();
+    });
+});
+</script>
+{% endblock %}

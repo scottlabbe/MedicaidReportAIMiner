@@ -1,0 +1,228 @@
+{% extends "layout.html" %}
+
+{% block head_content %}
+<title>Upload Reports - Medicaid Audit Report Analyzer</title>
+<style>
+    .drop-zone {
+        border: 2px dashed #6c757d;
+        border-radius: 5px;
+        padding: 2rem;
+        text-align: center;
+        cursor: pointer;
+        transition: border-color 0.3s ease-in-out;
+    }
+    
+    .drop-zone:hover {
+        border-color: #0d6efd;
+    }
+    
+    .drop-zone.active {
+        border-color: #198754;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="fas fa-upload me-2"></i>
+            Upload Reports
+        </h1>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <div class="card">
+            <div class="card-header bg-primary">
+                <h5 class="mb-0">Upload Audit Report PDFs</h5>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('upload') }}" method="POST" enctype="multipart/form-data" id="uploadForm">
+                    <div class="mb-4">
+                        <div class="drop-zone" id="dropZone">
+                            <div class="drop-zone-text">
+                                <i class="fas fa-file-pdf fa-3x mb-3"></i>
+                                <p>Drag & drop PDF files here or click to browse</p>
+                            </div>
+                            <input type="file" name="files" id="fileInput" class="d-none" accept=".pdf" multiple>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4" id="selectedFiles" style="display: none;">
+                        <h6>Selected Files:</h6>
+                        <ul class="list-group" id="fileList"></ul>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="aiModel" class="form-label">Select AI Model for Extraction:</label>
+                        <select class="form-select" id="aiModel" name="ai_model">
+                            <option value="openai" selected>OpenAI (GPT-4o)</option>
+                            <option value="gemini" disabled>Google Gemini (Coming Soon)</option>
+                        </select>
+                        <div class="form-text">Choose the AI model to extract structured data from your PDFs.</div>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary" id="uploadButton" disabled>
+                            <i class="fas fa-cloud-upload-alt me-1"></i> Process Selected Files
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if results %}
+<div class="row mt-4">
+    <div class="col-lg-8 mx-auto">
+        <div class="card">
+            <div class="card-header bg-info">
+                <h5 class="mb-0">Upload Results</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Filename</th>
+                                <th>Status</th>
+                                <th>Message</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for result in results %}
+                            <tr>
+                                <td>{{ result.filename }}</td>
+                                <td>
+                                    {% if result.status == 'success' %}
+                                    <span class="badge bg-success">Success</span>
+                                    {% elif result.status == 'duplicate' %}
+                                    <span class="badge bg-warning">Duplicate</span>
+                                    {% elif result.status == 'warning' %}
+                                    <span class="badge bg-warning">Warning</span>
+                                    {% else %}
+                                    <span class="badge bg-danger">Error</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ result.message }}</td>
+                                <td>
+                                    {% if result.status == 'success' and result.temp_id %}
+                                    <a href="{{ url_for('review', temp_id=result.temp_id) }}" class="btn btn-sm btn-primary">
+                                        <i class="fas fa-check-circle me-1"></i> Review
+                                    </a>
+                                    {% elif result.status in ('duplicate', 'warning') and result.report_id %}
+                                    <a href="{{ url_for('report_detail', report_id=result.report_id) }}" class="btn btn-sm btn-info">
+                                        <i class="fas fa-eye me-1"></i> View
+                                    </a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const fileList = document.getElementById('fileList');
+    const selectedFiles = document.getElementById('selectedFiles');
+    const uploadButton = document.getElementById('uploadButton');
+    
+    // Handle drag & drop events
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, preventDefaults, false);
+    });
+    
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropZone.addEventListener(eventName, highlight, false);
+    });
+    
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, unhighlight, false);
+    });
+    
+    function highlight() {
+        dropZone.classList.add('active');
+    }
+    
+    function unhighlight() {
+        dropZone.classList.remove('active');
+    }
+    
+    // Handle file drop
+    dropZone.addEventListener('drop', handleDrop, false);
+    
+    function handleDrop(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        fileInput.files = files;
+        updateFileList();
+    }
+    
+    // Handle click to browse
+    dropZone.addEventListener('click', function() {
+        fileInput.click();
+    });
+    
+    // Handle file selection
+    fileInput.addEventListener('change', updateFileList);
+    
+    function updateFileList() {
+        const files = fileInput.files;
+        
+        if (files.length > 0) {
+            selectedFiles.style.display = 'block';
+            fileList.innerHTML = '';
+            
+            let allPdfFiles = true;
+            
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const fileItem = document.createElement('li');
+                fileItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+                
+                const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+                allPdfFiles = allPdfFiles && isPdf;
+                
+                fileItem.innerHTML = `
+                    <div>
+                        <i class="${isPdf ? 'fas fa-file-pdf text-danger' : 'fas fa-file text-secondary'} me-2"></i>
+                        ${file.name}
+                    </div>
+                    <span class="badge ${isPdf ? 'bg-success' : 'bg-danger'}">
+                        ${isPdf ? 'PDF' : 'Not PDF'}
+                    </span>
+                `;
+                
+                fileList.appendChild(fileItem);
+            }
+            
+            // Enable upload button only if all files are PDFs
+            uploadButton.disabled = !allPdfFiles;
+        } else {
+            selectedFiles.style.display = 'none';
+            uploadButton.disabled = true;
+        }
+    }
+});
+</script>
+{% endblock %}
