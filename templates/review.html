@@ -122,8 +122,66 @@
                                     </div>
                                     
                                     <div class="col-md-6 mb-3">
-                                        <label for="state" class="form-label">State</label>
-                                        <input type="text" class="form-control" id="state" value="{{ report_data.state }}">
+                                        <label for="state" class="form-label">State (2-letter code)</label>
+                                        <select class="form-select" id="state">
+                                            <option value="">-- Select State --</option>
+                                            <option value="AL" {% if report_data.state == "AL" %}selected{% endif %}>Alabama (AL)</option>
+                                            <option value="AK" {% if report_data.state == "AK" %}selected{% endif %}>Alaska (AK)</option>
+                                            <option value="AZ" {% if report_data.state == "AZ" %}selected{% endif %}>Arizona (AZ)</option>
+                                            <option value="AR" {% if report_data.state == "AR" %}selected{% endif %}>Arkansas (AR)</option>
+                                            <option value="CA" {% if report_data.state == "CA" %}selected{% endif %}>California (CA)</option>
+                                            <option value="CO" {% if report_data.state == "CO" %}selected{% endif %}>Colorado (CO)</option>
+                                            <option value="CT" {% if report_data.state == "CT" %}selected{% endif %}>Connecticut (CT)</option>
+                                            <option value="DE" {% if report_data.state == "DE" %}selected{% endif %}>Delaware (DE)</option>
+                                            <option value="FL" {% if report_data.state == "FL" %}selected{% endif %}>Florida (FL)</option>
+                                            <option value="GA" {% if report_data.state == "GA" %}selected{% endif %}>Georgia (GA)</option>
+                                            <option value="HI" {% if report_data.state == "HI" %}selected{% endif %}>Hawaii (HI)</option>
+                                            <option value="ID" {% if report_data.state == "ID" %}selected{% endif %}>Idaho (ID)</option>
+                                            <option value="IL" {% if report_data.state == "IL" %}selected{% endif %}>Illinois (IL)</option>
+                                            <option value="IN" {% if report_data.state == "IN" %}selected{% endif %}>Indiana (IN)</option>
+                                            <option value="IA" {% if report_data.state == "IA" %}selected{% endif %}>Iowa (IA)</option>
+                                            <option value="KS" {% if report_data.state == "KS" %}selected{% endif %}>Kansas (KS)</option>
+                                            <option value="KY" {% if report_data.state == "KY" %}selected{% endif %}>Kentucky (KY)</option>
+                                            <option value="LA" {% if report_data.state == "LA" %}selected{% endif %}>Louisiana (LA)</option>
+                                            <option value="ME" {% if report_data.state == "ME" %}selected{% endif %}>Maine (ME)</option>
+                                            <option value="MD" {% if report_data.state == "MD" %}selected{% endif %}>Maryland (MD)</option>
+                                            <option value="MA" {% if report_data.state == "MA" %}selected{% endif %}>Massachusetts (MA)</option>
+                                            <option value="MI" {% if report_data.state == "MI" %}selected{% endif %}>Michigan (MI)</option>
+                                            <option value="MN" {% if report_data.state == "MN" %}selected{% endif %}>Minnesota (MN)</option>
+                                            <option value="MS" {% if report_data.state == "MS" %}selected{% endif %}>Mississippi (MS)</option>
+                                            <option value="MO" {% if report_data.state == "MO" %}selected{% endif %}>Missouri (MO)</option>
+                                            <option value="MT" {% if report_data.state == "MT" %}selected{% endif %}>Montana (MT)</option>
+                                            <option value="NE" {% if report_data.state == "NE" %}selected{% endif %}>Nebraska (NE)</option>
+                                            <option value="NV" {% if report_data.state == "NV" %}selected{% endif %}>Nevada (NV)</option>
+                                            <option value="NH" {% if report_data.state == "NH" %}selected{% endif %}>New Hampshire (NH)</option>
+                                            <option value="NJ" {% if report_data.state == "NJ" %}selected{% endif %}>New Jersey (NJ)</option>
+                                            <option value="NM" {% if report_data.state == "NM" %}selected{% endif %}>New Mexico (NM)</option>
+                                            <option value="NY" {% if report_data.state == "NY" %}selected{% endif %}>New York (NY)</option>
+                                            <option value="NC" {% if report_data.state == "NC" %}selected{% endif %}>North Carolina (NC)</option>
+                                            <option value="ND" {% if report_data.state == "ND" %}selected{% endif %}>North Dakota (ND)</option>
+                                            <option value="OH" {% if report_data.state == "OH" %}selected{% endif %}>Ohio (OH)</option>
+                                            <option value="OK" {% if report_data.state == "OK" %}selected{% endif %}>Oklahoma (OK)</option>
+                                            <option value="OR" {% if report_data.state == "OR" %}selected{% endif %}>Oregon (OR)</option>
+                                            <option value="PA" {% if report_data.state == "PA" %}selected{% endif %}>Pennsylvania (PA)</option>
+                                            <option value="RI" {% if report_data.state == "RI" %}selected{% endif %}>Rhode Island (RI)</option>
+                                            <option value="SC" {% if report_data.state == "SC" %}selected{% endif %}>South Carolina (SC)</option>
+                                            <option value="SD" {% if report_data.state == "SD" %}selected{% endif %}>South Dakota (SD)</option>
+                                            <option value="TN" {% if report_data.state == "TN" %}selected{% endif %}>Tennessee (TN)</option>
+                                            <option value="TX" {% if report_data.state == "TX" %}selected{% endif %}>Texas (TX)</option>
+                                            <option value="UT" {% if report_data.state == "UT" %}selected{% endif %}>Utah (UT)</option>
+                                            <option value="VT" {% if report_data.state == "VT" %}selected{% endif %}>Vermont (VT)</option>
+                                            <option value="VA" {% if report_data.state == "VA" %}selected{% endif %}>Virginia (VA)</option>
+                                            <option value="WA" {% if report_data.state == "WA" %}selected{% endif %}>Washington (WA)</option>
+                                            <option value="WV" {% if report_data.state == "WV" %}selected{% endif %}>West Virginia (WV)</option>
+                                            <option value="WI" {% if report_data.state == "WI" %}selected{% endif %}>Wisconsin (WI)</option>
+                                            <option value="WY" {% if report_data.state == "WY" %}selected{% endif %}>Wyoming (WY)</option>
+                                            <option value="DC" {% if report_data.state == "DC" %}selected{% endif %}>District of Columbia (DC)</option>
+                                            <option value="AS" {% if report_data.state == "AS" %}selected{% endif %}>American Samoa (AS)</option>
+                                            <option value="GU" {% if report_data.state == "GU" %}selected{% endif %}>Guam (GU)</option>
+                                            <option value="MP" {% if report_data.state == "MP" %}selected{% endif %}>Northern Mariana Islands (MP)</option>
+                                            <option value="PR" {% if report_data.state == "PR" %}selected{% endif %}>Puerto Rico (PR)</option>
+                                            <option value="VI" {% if report_data.state == "VI" %}selected{% endif %}>U.S. Virgin Islands (VI)</option>
+                                        </select>
                                     </div>
                                 </div>
                                 
@@ -546,6 +604,13 @@ document.addEventListener('DOMContentLoaded', function() {
     form.addEventListener('submit', function(e) {
         e.preventDefault();
         
+        // Validate state if provided
+        const stateValue = document.getElementById('state').value;
+        if (stateValue && (stateValue.length !== 2 || !/^[A-Z]{2}$/.test(stateValue))) {
+            alert("State must be a valid 2-letter code (e.g., TX, NY) or left empty.");
+            return;
+        }
+        
         // Collect form data
         const reportData = {
             report_title: document.getElementById('report_title').value,
@@ -557,7 +622,7 @@ document.addEventListener('DOMContentLoaded', function() {
             llm_insight: document.getElementById('llm_insight').value,
             potential_objective_summary: document.getElementById('potential_objective_summary')?.value || null,
             original_report_source_url: document.getElementById('original_report_source_url').value || null,
-            state: document.getElementById('state').value || null,
+            state: document.getElementById('state').value || null, // This is now a dropdown with valid 2-letter state codes
             audit_scope: document.getElementById('audit_scope').value || null,
             
             // Get objectives
