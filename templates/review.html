@@ -558,10 +558,7 @@ document.addEventListener('DOMContentLoaded', function() {
             potential_objective_summary: document.getElementById('potential_objective_summary')?.value || null,
             original_report_source_url: document.getElementById('original_report_source_url').value || null,
             state: document.getElementById('state').value || null,
-            total_financial_impact: document.getElementById('total_financial_impact').value ? parseFloat(document.getElementById('total_financial_impact').value) : null,
-            audit_period_start_date: document.getElementById('audit_period_start_date').value || null,
-            audit_period_end_date: document.getElementById('audit_period_end_date').value || null,
-            audit_period_description: document.getElementById('audit_period_description').value || null,
+            audit_scope: document.getElementById('audit_scope').value || null,
             
             // Get objectives
             objectives: Array.from(document.querySelectorAll('.objective-item')).map(item => ({
