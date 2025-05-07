@@ -28,6 +28,38 @@ def register_routes(app):
                             total_reports=total_reports,
                             recent_reports=recent_reports,
                             featured_reports=featured_reports)
+                            
+    @app.route('/parse-review', methods=['GET', 'POST'])
+    def parse_review():
+        """Page for reviewing raw PDF text extraction"""
+        extracted_text = None
+        
+        if request.method == 'POST' and 'pdf_file' in request.files:
+            pdf_file = request.files['pdf_file']
+            
+            if pdf_file.filename == '':
+                flash('No file selected', 'error')
+                return redirect(request.url)
+                
+            if pdf_file:
+                try:
+                    # Process the uploaded file in memory
+                    pdf_io = io.BytesIO(pdf_file.read())
+                    
+                    # Extract text using PyMuPDF
+                    extracted_text = extract_text_from_pdf_memory(pdf_io)
+                    
+                    # Get file metadata for display
+                    filename = secure_filename(pdf_file.filename)
+                    file_size = len(pdf_io.getvalue())
+                    
+                    flash(f'Successfully extracted text from {filename} ({file_size/1024:.1f} KB)', 'success')
+                    
+                except Exception as e:
+                    flash(f'Error extracting text: {str(e)}', 'error')
+                    logging.error(f"PDF extraction error: {str(e)}")
+        
+        return render_template('parse_review.html', extracted_text=extracted_text)
     
     @app.route('/upload', methods=['GET', 'POST'])
     def upload():

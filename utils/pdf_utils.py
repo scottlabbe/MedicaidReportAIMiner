@@ -18,9 +18,15 @@ def extract_text_from_pdf(pdf_path):
     try:
         text = ""
         doc = fitz.open(pdf_path)
+        
+        # Extract text from each page
         for page_num in range(len(doc)):
             page = doc[page_num]
-            text += page.get_text() + "\n\n---- Page Break ----\n\n"
+            # Use "text" mode to preserve reading order and line breaks
+            page_text = page.get_text("text")
+            text += f"PAGE {page_num + 1}\n{'-' * 40}\n{page_text}\n\n"
+        
+        # Close the document to free resources
         doc.close()
         return text
     except Exception as e:
@@ -57,9 +63,15 @@ def extract_text_from_pdf_memory(pdf_io):
         text = ""
         pdf_io.seek(0)  # Reset pointer to beginning of file
         doc = fitz.open(stream=pdf_io.read(), filetype="pdf")
+        
+        # Extract text from each page
         for page_num in range(len(doc)):
             page = doc[page_num]
-            text += page.get_text() + "\n\n---- Page Break ----\n\n"
+            # Use "text" mode to preserve reading order and line breaks
+            page_text = page.get_text("text")
+            text += f"PAGE {page_num + 1}\n{'-' * 40}\n{page_text}\n\n"
+        
+        # Close the document to free resources
         doc.close()
         return text
     except Exception as e:

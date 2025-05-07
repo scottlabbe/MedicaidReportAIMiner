@@ -1,0 +1,205 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-dark">
+                    <h2 class="mb-0">
+                        <i class="fas fa-file-alt me-2"></i> PDF Parse Review
+                    </h2>
+                </div>
+                <div class="card-body">
+                    <p class="lead">
+                        Upload a PDF file to extract and review the raw text content. This tool helps identify parsing issues that might require preprocessing.
+                    </p>
+                    
+                    <!-- Upload Form -->
+                    <form method="POST" enctype="multipart/form-data" class="mb-4">
+                        <div class="row align-items-end">
+                            <div class="col-md-8 mb-3">
+                                <label for="pdf_file" class="form-label">Select PDF File</label>
+                                <input type="file" class="form-control" id="pdf_file" name="pdf_file" accept=".pdf" required>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <button type="submit" class="btn btn-primary" id="uploadBtn">
+                                    <i class="fas fa-upload me-1"></i> Upload and Review
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                    
+                    <!-- Loading Indicator (hidden by default) -->
+                    <div id="loadingIndicator" class="text-center mb-4 d-none">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">Extracting text, please wait...</p>
+                    </div>
+                    
+                    <!-- Results Section (only shown if there's extracted text) -->
+                    {% if extracted_text %}
+                    <div class="card mb-4">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">Extracted Text</h5>
+                            <div class="btn-group">
+                                <button class="btn btn-sm btn-outline-primary" id="copyTextBtn" title="Copy to clipboard">
+                                    <i class="fas fa-copy"></i> Copy
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary" id="downloadTextBtn" title="Download as text file">
+                                    <i class="fas fa-download"></i> Download
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body p-0">
+                            <!-- Scrollable text container with line numbers -->
+                            <div class="position-relative">
+                                <div class="extractedTextLineNumbers p-2 bg-dark border-end">
+                                    {% for i in range(1, extracted_text.count('\n') + 2) %}
+                                    <div class="lineNumber">{{ i }}</div>
+                                    {% endfor %}
+                                </div>
+                                <pre id="extractedTextContent" class="extractedTextContent p-2 bg-dark">{{ extracted_text }}</pre>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Analysis Section -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Text Analysis</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="card mb-3">
+                                        <div class="card-body">
+                                            <h6 class="card-title">Character Count</h6>
+                                            <p class="card-text fs-4">{{ extracted_text|length }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="card mb-3">
+                                        <div class="card-body">
+                                            <h6 class="card-title">Line Count</h6>
+                                            <p class="card-text fs-4">{{ extracted_text.count('\n') + 1 }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="card mb-3">
+                                        <div class="card-body">
+                                            <h6 class="card-title">Word Count (Approx.)</h6>
+                                            <p class="card-text fs-4">{{ extracted_text.split()|length }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block head_content %}
+<style>
+/* Styling for the extracted text display */
+.extractedTextContent {
+    font-family: monospace;
+    white-space: pre;
+    overflow-x: auto;
+    border-radius: 0.25rem;
+    min-height: 500px;
+    max-height: 500px;
+    overflow-y: auto;
+    margin: 0;
+    padding-left: 3.5rem !important;
+}
+
+/* Style for line numbers */
+.extractedTextLineNumbers {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 3rem;
+    overflow: hidden;
+    border-right: 1px solid var(--bs-border-color);
+    font-family: monospace;
+    text-align: right;
+    color: #6c757d;
+    user-select: none;
+    z-index: 1;
+}
+
+.lineNumber {
+    padding-right: 0.5rem;
+    min-height: 1.2em;
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Show loading indicator when form is submitted
+    const form = document.querySelector('form');
+    const loadingIndicator = document.getElementById('loadingIndicator');
+    
+    if (form) {
+        form.addEventListener('submit', function() {
+            loadingIndicator.classList.remove('d-none');
+        });
+    }
+    
+    // Copy extracted text to clipboard
+    const copyTextBtn = document.getElementById('copyTextBtn');
+    if (copyTextBtn) {
+        copyTextBtn.addEventListener('click', function() {
+            const extractedText = document.getElementById('extractedTextContent').textContent;
+            navigator.clipboard.writeText(extractedText).then(function() {
+                // Show feedback
+                const originalText = copyTextBtn.innerHTML;
+                copyTextBtn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                setTimeout(function() {
+                    copyTextBtn.innerHTML = originalText;
+                }, 2000);
+            });
+        });
+    }
+    
+    // Download extracted text as a file
+    const downloadTextBtn = document.getElementById('downloadTextBtn');
+    if (downloadTextBtn) {
+        downloadTextBtn.addEventListener('click', function() {
+            const extractedText = document.getElementById('extractedTextContent').textContent;
+            const blob = new Blob([extractedText], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'extracted_text.txt';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+    }
+    
+    // Sync scroll between line numbers and text content
+    const textContent = document.querySelector('.extractedTextContent');
+    const lineNumbers = document.querySelector('.extractedTextLineNumbers');
+    
+    if (textContent && lineNumbers) {
+        textContent.addEventListener('scroll', function() {
+            lineNumbers.scrollTop = textContent.scrollTop;
+        });
+    }
+});
+</script>
+{% endblock %}
