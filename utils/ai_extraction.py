@@ -12,26 +12,15 @@ from openai import OpenAI
 # Changed from gpt-4o as per user request
 OPENAI_MODEL = "gpt-4.1-nano"
 
-class Finding(BaseModel):
-    finding_text: str = Field(..., description="The text of the finding from the audit report")
-    financial_impact: Optional[float] = Field(None, description="The financial impact of this finding in dollars, if available")
-
-class Objective(BaseModel):
-    objective_text: str = Field(..., description="The text of the objective from the audit report")
-
-class Recommendation(BaseModel):
-    recommendation_text: str = Field(..., description="The text of the recommendation from the audit report")
-    related_finding_index: Optional[int] = Field(None, description="The index of the related finding, if available (0-based)")
-
 class ReportData(BaseModel):
     report_title: str = Field(..., description="The full title of the audit report, converted to standard title case (e.g., 'Annual Audit Report') even if it appears in all caps in the source.")
     audit_organization: str = Field(..., description="The organization that conducted the audit")
     publication_year: int = Field(..., description="The year the report was published (4-digit)")
     publication_month: int = Field(..., description="The month the report was published (1-12)")
     publication_day: Optional[int] = Field(None, description="The day the report was published (1-31), if available")
-    objectives: List[Objective] = Field([], description="List of audit objectives")
-    findings: List[Finding] = Field([], description="Comprehensive list of audit findings")
-    recommendations: List[Recommendation] = Field([], description="Comprehensive list of audit recommendations")
+    objectives: List[str] = Field([], description="List of distinct audit objective texts. Each objective should be a separate string in the list.")
+    findings: List[str] = Field([], description="List of distinct audit finding texts. Each finding should be a separate string in the list.")
+    recommendations: List[str] = Field([], description="List of distinct audit recommendation texts. Each recommendation should be a separate string in the list.")
     overall_conclusion: Optional[str] = Field(None, description="The overall conclusion of the audit report")
     llm_insight: str = Field(..., description="An AI-generated summary/insight about the report")
     potential_objective_summary: Optional[str] = Field(None, description="An AI-generated summary of the objectives")

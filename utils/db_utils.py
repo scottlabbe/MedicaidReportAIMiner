@@ -74,51 +74,51 @@ def save_report_to_db(report_data, file_metadata, ai_log):
         
         # Add objectives
         if is_dict:
-            for obj in report_data['objectives']:
+            for obj_text in report_data['objectives']:
                 objective = Objective(
                     report_id=report.id,
-                    objective_text=obj['objective_text']
+                    objective_text=obj_text
                 )
                 db.session.add(objective)
         else:
-            for obj in report_data.objectives:
+            for obj_text in report_data.objectives:
                 objective = Objective(
                     report_id=report.id,
-                    objective_text=obj.objective_text
+                    objective_text=obj_text
                 )
                 db.session.add(objective)
         
         # Add findings
         if is_dict:
-            for idx, f in enumerate(report_data['findings']):
+            for finding_text in report_data['findings']:
                 finding = Finding(
                     report_id=report.id,
-                    finding_text=f['finding_text'],
-                    financial_impact=f.get('financial_impact')
+                    finding_text=finding_text,
+                    financial_impact=None  # No longer available in simplified model
                 )
                 db.session.add(finding)
         else:
-            for idx, f in enumerate(report_data.findings):
+            for finding_text in report_data.findings:
                 finding = Finding(
                     report_id=report.id,
-                    finding_text=f.finding_text,
-                    financial_impact=f.financial_impact
+                    finding_text=finding_text,
+                    financial_impact=None  # No longer available in simplified model
                 )
                 db.session.add(finding)
         
         # Add recommendations
         if is_dict:
-            for rec in report_data['recommendations']:
+            for rec_text in report_data['recommendations']:
                 recommendation = Recommendation(
                     report_id=report.id,
-                    recommendation_text=rec['recommendation_text']
+                    recommendation_text=rec_text
                 )
                 db.session.add(recommendation)
         else:
-            for rec in report_data.recommendations:
+            for rec_text in report_data.recommendations:
                 recommendation = Recommendation(
                     report_id=report.id,
-                    recommendation_text=rec.recommendation_text
+                    recommendation_text=rec_text
                 )
                 db.session.add(recommendation)
         
@@ -197,10 +197,10 @@ def update_report_in_db(report_id, updated_data):
             Objective.query.filter_by(report_id=report_id).delete()
             
             # Add updated objectives
-            for obj_data in updated_data['objectives']:
+            for obj_text in updated_data['objectives']:
                 objective = Objective(
                     report_id=report_id,
-                    objective_text=obj_data['objective_text']
+                    objective_text=obj_text if isinstance(obj_text, str) else obj_text['objective_text']
                 )
                 db.session.add(objective)
         
@@ -210,11 +210,11 @@ def update_report_in_db(report_id, updated_data):
             Finding.query.filter_by(report_id=report_id).delete()
             
             # Add updated findings
-            for find_data in updated_data['findings']:
+            for find_text in updated_data['findings']:
                 finding = Finding(
                     report_id=report_id,
-                    finding_text=find_data['finding_text'],
-                    financial_impact=find_data.get('financial_impact')
+                    finding_text=find_text if isinstance(find_text, str) else find_text['finding_text'],
+                    financial_impact=None if isinstance(find_text, str) else find_text.get('financial_impact')
                 )
                 db.session.add(finding)
         
@@ -224,10 +224,10 @@ def update_report_in_db(report_id, updated_data):
             Recommendation.query.filter_by(report_id=report_id).delete()
             
             # Add updated recommendations
-            for rec_data in updated_data['recommendations']:
+            for rec_text in updated_data['recommendations']:
                 recommendation = Recommendation(
                     report_id=report_id,
-                    recommendation_text=rec_data['recommendation_text']
+                    recommendation_text=rec_text if isinstance(rec_text, str) else rec_text['recommendation_text']
                 )
                 db.session.add(recommendation)
         
