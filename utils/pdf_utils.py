@@ -2,7 +2,7 @@ import os
 import io
 import hashlib
 import logging
-import PyPDF2
+import fitz  # PyMuPDF
 from werkzeug.utils import secure_filename
 
 def extract_text_from_pdf(pdf_path):
@@ -17,11 +17,11 @@ def extract_text_from_pdf(pdf_path):
     """
     try:
         text = ""
-        with open(pdf_path, 'rb') as file:
-            pdf_reader = PyPDF2.PdfReader(file)
-            for page_num in range(len(pdf_reader.pages)):
-                page = pdf_reader.pages[page_num]
-                text += page.extract_text() + "\n\n---- Page Break ----\n\n"
+        doc = fitz.open(pdf_path)
+        for page_num in range(len(doc)):
+            page = doc[page_num]
+            text += page.get_text() + "\n\n---- Page Break ----\n\n"
+        doc.close()
         return text
     except Exception as e:
         logging.error(f"Error extracting text from PDF: {e}")
@@ -56,10 +56,11 @@ def extract_text_from_pdf_memory(pdf_io):
     try:
         text = ""
         pdf_io.seek(0)  # Reset pointer to beginning of file
-        pdf_reader = PyPDF2.PdfReader(pdf_io)
-        for page_num in range(len(pdf_reader.pages)):
-            page = pdf_reader.pages[page_num]
-            text += page.extract_text() + "\n\n---- Page Break ----\n\n"
+        doc = fitz.open(stream=pdf_io.read(), filetype="pdf")
+        for page_num in range(len(doc)):
+            page = doc[page_num]
+            text += page.get_text() + "\n\n---- Page Break ----\n\n"
+        doc.close()
         return text
     except Exception as e:
         logging.error(f"Error extracting text from PDF in memory: {e}")
@@ -77,26 +78,28 @@ def extract_keywords_from_pdf_metadata(pdf_path):
     """
     keywords = []
     try:
-        with open(pdf_path, 'rb') as file:
-            pdf_reader = PyPDF2.PdfReader(file)
-            if pdf_reader.metadata and hasattr(pdf_reader.metadata, 'get'):
-                # Get keywords from metadata - they can be stored under different names
-                for key in ['/Keywords', '/Subject']:
-                    keyword_str = pdf_reader.metadata.get(key, '')
-                    if keyword_str:
-                        # Keywords can be comma or semicolon-separated
-                        for sep in [',', ';']:
-                            if sep in keyword_str:
-                                # Split, strip and add non-empty keywords to the list
-                                for kw in keyword_str.split(sep):
-                                    kw = kw.strip()
-                                    if kw:
-                                        keywords.append(kw)
-                                break
-                        else:
-                            # If no separator found, add the entire string as a single keyword
-                            keywords.append(keyword_str.strip())
+        doc = fitz.open(pdf_path)
+        metadata = doc.metadata
         
+        # Get keywords from metadata - they can be stored under different names
+        for key in ['keywords', 'subject']:
+            if key in metadata and metadata[key]:
+                keyword_str = metadata[key]
+                if keyword_str:
+                    # Keywords can be comma or semicolon-separated
+                    for sep in [',', ';']:
+                        if sep in keyword_str:
+                            # Split, strip and add non-empty keywords to the list
+                            for kw in keyword_str.split(sep):
+                                kw = kw.strip()
+                                if kw:
+                                    keywords.append(kw)
+                            break
+                    else:
+                        # If no separator found, add the entire string as a single keyword
+                        keywords.append(keyword_str.strip())
+        
+        doc.close()
         return [kw for kw in keywords if kw]  # Return non-empty keywords
     except Exception as e:
         logging.error(f"Error extracting keywords from PDF metadata: {e}")
@@ -115,11 +118,14 @@ def extract_keywords_from_pdf_metadata_memory(pdf_io):
     keywords = []
     try:
         pdf_io.seek(0)  # Reset pointer to beginning of file
-        pdf_reader = PyPDF2.PdfReader(pdf_io)
-        if pdf_reader.metadata and hasattr(pdf_reader.metadata, 'get'):
-            # Get keywords from metadata - they can be stored under different names
-            for key in ['/Keywords', '/Subject']:
-                keyword_str = pdf_reader.metadata.get(key, '')
+        pdf_bytes = pdf_io.read()
+        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+        metadata = doc.metadata
+        
+        # Get keywords from metadata - they can be stored under different names
+        for key in ['keywords', 'subject']:
+            if key in metadata and metadata[key]:
+                keyword_str = metadata[key]
                 if keyword_str:
                     # Keywords can be comma or semicolon-separated
                     for sep in [',', ';']:
@@ -133,7 +139,8 @@ def extract_keywords_from_pdf_metadata_memory(pdf_io):
                     else:
                         # If no separator found, add the entire string as a single keyword
                         keywords.append(keyword_str.strip())
-    
+        
+        doc.close()
         return [kw for kw in keywords if kw]  # Return non-empty keywords
     except Exception as e:
         logging.error(f"Error extracting keywords from PDF metadata in memory: {e}")
