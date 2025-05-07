@@ -17,7 +17,7 @@ from utils.ai_extraction import extract_data_with_openai
 from utils.db_utils import check_duplicate_report, save_report_to_db, update_report_in_db, print_report_data
 from utils.parser_strategies import ParsingStrategy, get_parser_function
 from utils.comparison_storage import ComparisonStorage
-from utils.chunking_strategies import ChunkingStrategy, get_chunker_function, calculate_chunk_statistics
+from utils.chunking_strategies import ChunkingStrategy, get_chunker_function, calculate_chunk_statistics, count_tokens
 from utils.chunking_storage import ChunkingComparisonStorage
 
 def register_routes(app):
@@ -691,3 +691,208 @@ def register_routes(app):
             return jsonify({'error': 'Chunking comparison data not found or expired'}), 404
             
         return jsonify(comparison_data)
+        
+    @app.route('/chunking-upload')
+    def chunking_upload():
+        """Page for uploading a PDF to compare chunking strategies"""
+        # Get the options for the chunking strategies
+        chunking_strategies = ChunkingStrategy.choices()
+        
+        return render_template('chunking_upload.html', 
+                              chunking_strategies=chunking_strategies)
+    
+    @app.route('/chunking-process', methods=['POST'])
+    def chunking_process():
+        """Process an uploaded PDF with selected chunking strategies"""
+        # Check if files were uploaded
+        if 'pdf_file' not in request.files:
+            flash('No file selected', 'danger')
+            return redirect(url_for('chunking_upload'))
+            
+        pdf_file = request.files['pdf_file']
+        
+        # If no file was selected
+        if pdf_file.filename == '':
+            flash('No file selected', 'danger')
+            return redirect(url_for('chunking_upload'))
+            
+        # Check if the file is a PDF
+        if not pdf_file.filename.lower().endswith('.pdf'):
+            flash('Only PDF files are allowed', 'danger')
+            return redirect(url_for('chunking_upload'))
+            
+        # Get strategy selections
+        strategy_1 = request.form.get('strategy_1')
+        strategy_2 = request.form.get('strategy_2')
+        
+        # Check if strategies are selected
+        if not strategy_1 or not strategy_2:
+            flash('Please select two chunking strategies', 'danger')
+            return redirect(url_for('chunking_upload'))
+            
+        try:
+            # Initialize response data
+            comparison_data = {
+                'filename': secure_filename(pdf_file.filename),
+                'strategy_1': strategy_1,
+                'strategy_2': strategy_2,
+                'strategy_name_1': ChunkingStrategy[strategy_1].display_name if strategy_1 in ChunkingStrategy.__members__ else strategy_1,
+                'strategy_name_2': ChunkingStrategy[strategy_2].display_name if strategy_2 in ChunkingStrategy.__members__ else strategy_2,
+                'chunks_1': [],
+                'chunks_2': [],
+                'stats_1': {},
+                'stats_2': {},
+                'error_1': None,
+                'error_2': None
+            }
+            
+            # Process the file in memory
+            pdf_content = pdf_file.read()
+            
+            # Create BytesIO object for the PDF content
+            pdf_io = io.BytesIO(pdf_content)
+            
+            # Extract text from PDF in memory
+            pdf_text = extract_text_from_pdf_memory(pdf_io)
+            
+            # Count total tokens in the document
+            text_token_count = count_tokens(pdf_text)
+            
+            # Add document stats to comparison data
+            comparison_data['text_length'] = len(pdf_text)
+            comparison_data['text_token_count'] = text_token_count
+            
+            # Process with strategy 1
+            try:
+                # Get parameters for strategy 1
+                strategy_1_params = {}
+                for key, value in request.form.items():
+                    if key.startswith(f'params_1_'):
+                        param_name = key.replace('params_1_', '')
+                        # Convert numeric values
+                        if value.isdigit():
+                            value = int(value)
+                        strategy_1_params[param_name] = value
+                
+                # Get the chunker function
+                chunker_func_1 = get_chunker_function(strategy_1)
+                
+                # Create the parameter model
+                param_model_cls = ChunkingStrategy[strategy_1].param_model
+                params_1 = param_model_cls(**strategy_1_params)
+                
+                # Apply the chunking strategy
+                chunks_1 = chunker_func_1(pdf_text, params_1)
+                
+                # Convert Chunk objects to dictionaries
+                chunks_1_dicts = [
+                    {
+                        'chunk_text': chunk.chunk_text,
+                        'metadata': chunk.metadata,
+                        'char_count': chunk.char_count,
+                        'token_count': chunk.token_count,
+                        'chunk_id': chunk.chunk_id
+                    }
+                    for chunk in chunks_1
+                ]
+                
+                # Calculate statistics
+                stats_1 = calculate_chunk_statistics(chunks_1)
+                
+                # Store results
+                comparison_data['chunks_1'] = chunks_1_dicts
+                comparison_data['stats_1'] = stats_1
+                
+            except Exception as e:
+                logging.error(f"Error processing with strategy 1: {e}")
+                comparison_data['error_1'] = str(e)
+                comparison_data['chunks_1'] = []
+                comparison_data['stats_1'] = {
+                    'total_chunks': 0,
+                    'avg_chunk_length_chars': 0,
+                    'avg_chunk_length_tokens': 0,
+                    'min_chunk_length_tokens': 0,
+                    'max_chunk_length_tokens': 0,
+                    'total_chars': 0,
+                    'total_tokens': 0
+                }
+            
+            # Process with strategy 2
+            try:
+                # Get parameters for strategy 2
+                strategy_2_params = {}
+                for key, value in request.form.items():
+                    if key.startswith(f'params_2_'):
+                        param_name = key.replace('params_2_', '')
+                        # Convert numeric values
+                        if value.isdigit():
+                            value = int(value)
+                        strategy_2_params[param_name] = value
+                
+                # Get the chunker function
+                chunker_func_2 = get_chunker_function(strategy_2)
+                
+                # Create the parameter model
+                param_model_cls = ChunkingStrategy[strategy_2].param_model
+                params_2 = param_model_cls(**strategy_2_params)
+                
+                # Apply the chunking strategy
+                chunks_2 = chunker_func_2(pdf_text, params_2)
+                
+                # Convert Chunk objects to dictionaries
+                chunks_2_dicts = [
+                    {
+                        'chunk_text': chunk.chunk_text,
+                        'metadata': chunk.metadata,
+                        'char_count': chunk.char_count,
+                        'token_count': chunk.token_count,
+                        'chunk_id': chunk.chunk_id
+                    }
+                    for chunk in chunks_2
+                ]
+                
+                # Calculate statistics
+                stats_2 = calculate_chunk_statistics(chunks_2)
+                
+                # Store results
+                comparison_data['chunks_2'] = chunks_2_dicts
+                comparison_data['stats_2'] = stats_2
+                
+            except Exception as e:
+                logging.error(f"Error processing with strategy 2: {e}")
+                comparison_data['error_2'] = str(e)
+                comparison_data['chunks_2'] = []
+                comparison_data['stats_2'] = {
+                    'total_chunks': 0,
+                    'avg_chunk_length_chars': 0,
+                    'avg_chunk_length_tokens': 0,
+                    'min_chunk_length_tokens': 0,
+                    'max_chunk_length_tokens': 0,
+                    'total_chars': 0,
+                    'total_tokens': 0
+                }
+            
+            # Store the comparison data
+            chunking_storage = ChunkingComparisonStorage(app)
+            comparison_id = chunking_storage.store_chunking_comparison(comparison_data)
+            
+            # Redirect to the chunking view page
+            return redirect(url_for('chunking_view', comparison_id=comparison_id))
+            
+        except Exception as e:
+            logging.error(f"Error in chunking comparison: {str(e)}")
+            flash(f'Error processing comparison: {str(e)}', 'danger')
+            return redirect(url_for('chunking_upload'))
+            
+    @app.route('/chunking-view/<comparison_id>')
+    def chunking_view(comparison_id):
+        """Page for reviewing chunking comparison results"""
+        # Get the chunking comparison data from storage
+        chunking_storage = ChunkingComparisonStorage(app)
+        comparison_data = chunking_storage.get_chunking_comparison(comparison_id)
+        
+        if not comparison_data:
+            flash('Chunking comparison data not found or expired', 'danger')
+            return redirect(url_for('chunking_upload'))
+            
+        return render_template('chunking_view.html', comparison_data=comparison_data)

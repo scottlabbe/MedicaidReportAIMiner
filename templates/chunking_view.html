@@ -1,0 +1,222 @@
+{% extends "layout.html" %}
+
+{% block title %}Chunking Comparison Results{% endblock %}
+
+{% block head_content %}
+<style>
+    .chunk {
+        padding: 10px;
+        margin-bottom: 10px;
+        border: 1px solid #555;
+        border-radius: 4px;
+        word-wrap: break-word;
+    }
+    
+    .chunk-highlighted {
+        background-color: rgba(var(--bs-primary-rgb), 0.1);
+    }
+    
+    .chunk-metadata {
+        margin-top: 5px;
+        padding-top: 5px;
+        border-top: 1px dashed #555;
+        font-size: 0.8rem;
+        color: #999;
+    }
+    
+    .scrollable-panel {
+        height: 600px;
+        overflow-y: auto;
+    }
+    
+    /* For synchronized scrolling */
+    .sync-scroll {
+        scrollbar-width: thin;
+    }
+    
+    #scroll-sync-toggle {
+        position: fixed; 
+        bottom: 20px; 
+        right: 20px;
+        z-index: 1000;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <h1 class="mb-4">Chunking Comparison Results</h1>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Document Information</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>Filename:</strong> {{ comparison_data.filename }}</p>
+                </div>
+                <div class="col-md-6">
+                    <p><strong>Text Length:</strong> {{ comparison_data.text_length }} characters / ~{{ comparison_data.text_token_count }} tokens</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row g-4">
+        <!-- Strategy 1 Results -->
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">{{ comparison_data.strategy_name_1 }}</h5>
+                    <span class="badge bg-light text-dark">{{ comparison_data.stats_1.total_chunks }} chunks</span>
+                </div>
+                <div class="card-body">
+                    <div class="stats-summary mb-3">
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <div class="p-2 border rounded">
+                                    <div class="small text-muted">Avg. Chunk Size (tokens)</div>
+                                    <div class="fw-bold">{{ comparison_data.stats_1.avg_chunk_length_tokens }}</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="p-2 border rounded">
+                                    <div class="small text-muted">Avg. Chunk Size (chars)</div>
+                                    <div class="fw-bold">{{ comparison_data.stats_1.avg_chunk_length_chars }}</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="p-2 border rounded">
+                                    <div class="small text-muted">Min Chunk Size (tokens)</div>
+                                    <div class="fw-bold">{{ comparison_data.stats_1.min_chunk_length_tokens }}</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="p-2 border rounded">
+                                    <div class="small text-muted">Max Chunk Size (tokens)</div>
+                                    <div class="fw-bold">{{ comparison_data.stats_1.max_chunk_length_tokens }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="chunks-panel-1" class="scrollable-panel sync-scroll">
+                        {% for chunk in comparison_data.chunks_1 %}
+                        <div id="chunk-1-{{ loop.index }}" class="chunk">
+                            <div class="chunk-content">{{ chunk.chunk_text|safe }}</div>
+                            <div class="chunk-metadata">
+                                <strong>Chunk #{{ loop.index }}</strong> | 
+                                {{ chunk.token_count }} tokens | 
+                                {{ chunk.char_count }} chars
+                                {% if chunk.metadata %}
+                                | {{ chunk.metadata|tojson }}
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Strategy 2 Results -->
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">{{ comparison_data.strategy_name_2 }}</h5>
+                    <span class="badge bg-light text-dark">{{ comparison_data.stats_2.total_chunks }} chunks</span>
+                </div>
+                <div class="card-body">
+                    <div class="stats-summary mb-3">
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <div class="p-2 border rounded">
+                                    <div class="small text-muted">Avg. Chunk Size (tokens)</div>
+                                    <div class="fw-bold">{{ comparison_data.stats_2.avg_chunk_length_tokens }}</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="p-2 border rounded">
+                                    <div class="small text-muted">Avg. Chunk Size (chars)</div>
+                                    <div class="fw-bold">{{ comparison_data.stats_2.avg_chunk_length_chars }}</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="p-2 border rounded">
+                                    <div class="small text-muted">Min Chunk Size (tokens)</div>
+                                    <div class="fw-bold">{{ comparison_data.stats_2.min_chunk_length_tokens }}</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="p-2 border rounded">
+                                    <div class="small text-muted">Max Chunk Size (tokens)</div>
+                                    <div class="fw-bold">{{ comparison_data.stats_2.max_chunk_length_tokens }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="chunks-panel-2" class="scrollable-panel sync-scroll">
+                        {% for chunk in comparison_data.chunks_2 %}
+                        <div id="chunk-2-{{ loop.index }}" class="chunk">
+                            <div class="chunk-content">{{ chunk.chunk_text|safe }}</div>
+                            <div class="chunk-metadata">
+                                <strong>Chunk #{{ loop.index }}</strong> | 
+                                {{ chunk.token_count }} tokens | 
+                                {{ chunk.char_count }} chars
+                                {% if chunk.metadata %}
+                                | {{ chunk.metadata|tojson }}
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+        <a href="{{ url_for('chunking_upload') }}" class="btn btn-outline-primary">
+            <i class="fas fa-arrow-left me-1"></i> Back to Upload
+        </a>
+    </div>
+    
+    <div id="scroll-sync-toggle" class="form-check form-switch">
+        <input class="form-check-input" type="checkbox" id="scroll-sync-checkbox" checked>
+        <label class="form-check-label text-light bg-dark p-2 rounded" for="scroll-sync-checkbox">Sync Scroll</label>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const panel1 = document.getElementById('chunks-panel-1');
+    const panel2 = document.getElementById('chunks-panel-2');
+    const syncCheckbox = document.getElementById('scroll-sync-checkbox');
+    
+    // Flag to prevent recursive scroll events
+    let isScrolling = false;
+    
+    // Synchronize scrolling between panels
+    function syncScrollPosition(source, target) {
+        if (!syncCheckbox.checked || isScrolling) return;
+        
+        isScrolling = true;
+        
+        // Calculate scroll position
+        const scrollPercentage = source.scrollTop / (source.scrollHeight - source.clientHeight);
+        target.scrollTop = scrollPercentage * (target.scrollHeight - target.clientHeight);
+        
+        // Reset flag after a short delay to prevent event loops
+        setTimeout(() => { isScrolling = false; }, 50);
+    }
+    
+    // Add scroll event listeners
+    panel1.addEventListener('scroll', () => syncScrollPosition(panel1, panel2));
+    panel2.addEventListener('scroll', () => syncScrollPosition(panel2, panel1));
+});
+</script>
+{% endblock %}

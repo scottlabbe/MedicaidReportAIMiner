@@ -1,0 +1,179 @@
+{% extends "layout.html" %}
+
+{% block title %}Chunking Comparison Tool{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h1 class="mb-4">Chunking Comparison Tool</h1>
+    <p class="lead mb-4">
+        Upload a PDF file and select two chunking strategies to compare how the document gets divided into chunks.
+        This tool processes the PDF in-memory and doesn't save any files.
+    </p>
+    
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">Upload PDF & Select Strategies</h5>
+        </div>
+        <div class="card-body">
+            <form action="{{ url_for('chunking_process') }}" method="post" enctype="multipart/form-data">
+                <div class="mb-4">
+                    <label for="pdf_file" class="form-label">Select PDF file</label>
+                    <input class="form-control" type="file" id="pdf_file" name="pdf_file" accept=".pdf" required>
+                    <div class="form-text">PDF files only. Maximum size: 10MB</div>
+                </div>
+                
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header bg-primary text-white">
+                                <h5 class="mb-0">Chunking Strategy 1</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label for="strategy_1" class="form-label">Strategy</label>
+                                    <select class="form-select" id="strategy_1" name="strategy_1" required onchange="loadStrategyParams(1, this.value)">
+                                        <option value="">Select a chunking strategy</option>
+                                        {% for key, display_name in chunking_strategies %}
+                                        <option value="{{ key }}">{{ display_name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                
+                                <div id="strategy_1_params" class="strategy-params">
+                                    <!-- Parameters will be loaded dynamically -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header bg-secondary text-white">
+                                <h5 class="mb-0">Chunking Strategy 2</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label for="strategy_2" class="form-label">Strategy</label>
+                                    <select class="form-select" id="strategy_2" name="strategy_2" required onchange="loadStrategyParams(2, this.value)">
+                                        <option value="">Select a chunking strategy</option>
+                                        {% for key, display_name in chunking_strategies %}
+                                        <option value="{{ key }}">{{ display_name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                
+                                <div id="strategy_2_params" class="strategy-params">
+                                    <!-- Parameters will be loaded dynamically -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                    <button type="submit" class="btn btn-primary">Compare Chunking Strategies</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initial parameter loading
+    const strategy1 = document.getElementById('strategy_1');
+    const strategy2 = document.getElementById('strategy_2');
+    
+    // Default to first two strategies if available
+    if (strategy1.options.length > 1) {
+        strategy1.selectedIndex = 1;
+        loadStrategyParams(1, strategy1.value);
+    }
+    
+    if (strategy2.options.length > 2) {
+        strategy2.selectedIndex = 2;
+        loadStrategyParams(2, strategy2.value);
+    } else if (strategy2.options.length > 1) {
+        strategy2.selectedIndex = 1;
+        loadStrategyParams(2, strategy2.value);
+    }
+});
+
+// Strategy parameter definitions
+const strategyParams = {
+    'SIMPLE_RECURSIVE_SPLITTER': [
+        { name: 'chunk_size', label: 'Chunk Size (tokens)', type: 'number', default: 512, min: 50, max: 2048 },
+        { name: 'chunk_overlap', label: 'Chunk Overlap (tokens)', type: 'number', default: 50, min: 0, max: 200 },
+        { name: 'split_method', label: 'Split Method', type: 'select', default: 'token', 
+          options: [
+              { value: 'token', label: 'By Token Count' },
+              { value: 'sentence', label: 'By Sentences' }
+          ] 
+        }
+    ],
+    'SEMANTIC_CHUNKING_LLAMAINDEX': [
+        { name: 'chunk_size', label: 'Chunk Size (tokens)', type: 'number', default: 512, min: 50, max: 2048 },
+        { name: 'chunk_overlap', label: 'Chunk Overlap (tokens)', type: 'number', default: 50, min: 0, max: 200 },
+        { name: 'breakpoint_percentile_threshold', label: 'Breakpoint Percentile Threshold', type: 'number', default: 95, min: 50, max: 100 }
+    ],
+    'MARKDOWN_NODE_PARSER': [
+        { name: 'chunk_size', label: 'Chunk Size (tokens)', type: 'number', default: 512, min: 50, max: 2048 }
+    ]
+};
+
+function loadStrategyParams(strategyNum, strategyKey) {
+    const paramsContainer = document.getElementById(`strategy_${strategyNum}_params`);
+    paramsContainer.innerHTML = '';
+    
+    if (!strategyKey || !strategyParams[strategyKey]) {
+        return;
+    }
+    
+    const params = strategyParams[strategyKey];
+    
+    params.forEach(param => {
+        const formGroup = document.createElement('div');
+        formGroup.className = 'mb-3';
+        
+        const label = document.createElement('label');
+        label.className = 'form-label';
+        label.setAttribute('for', `params_${strategyNum}_${param.name}`);
+        label.textContent = param.label;
+        formGroup.appendChild(label);
+        
+        if (param.type === 'number') {
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.className = 'form-control';
+            input.id = `params_${strategyNum}_${param.name}`;
+            input.name = `params_${strategyNum}_${param.name}`;
+            input.value = param.default;
+            
+            if (param.min !== undefined) input.min = param.min;
+            if (param.max !== undefined) input.max = param.max;
+            
+            formGroup.appendChild(input);
+        } else if (param.type === 'select') {
+            const select = document.createElement('select');
+            select.className = 'form-select';
+            select.id = `params_${strategyNum}_${param.name}`;
+            select.name = `params_${strategyNum}_${param.name}`;
+            
+            param.options.forEach(option => {
+                const optionElement = document.createElement('option');
+                optionElement.value = option.value;
+                optionElement.textContent = option.label;
+                if (option.value === param.default) {
+                    optionElement.selected = true;
+                }
+                select.appendChild(optionElement);
+            });
+            
+            formGroup.appendChild(select);
+        }
+        
+        paramsContainer.appendChild(formGroup);
+    });
+}
+</script>
+{% endblock %}
