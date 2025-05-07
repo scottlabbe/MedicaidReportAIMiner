@@ -62,7 +62,7 @@ class ChunkingStrategy(Enum):
     """
     SIMPLE_RECURSIVE_SPLITTER = ("Simple Recursive Splitter (LlamaIndex)", SimpleSplitterParams)
     SEMANTIC_CHUNKING_LLAMAINDEX = ("Semantic Chunking (LlamaIndex)", SemanticSplitterParams)
-    MARKDOWN_HEADER_SPLITTER = ("Markdown Header Splitter", MarkdownSplitterParams)
+    MARKDOWN_NODE_PARSER = ("Markdown Parser", MarkdownSplitterParams)  # Renamed from MARKDOWN_HEADER_SPLITTER
 
     def __init__(self, display_name, param_model_cls):
         self._display_name = display_name
@@ -242,9 +242,9 @@ def chunk_with_semantic(text: str, params: SemanticSplitterParams) -> List[Chunk
     
     return chunks
 
-def chunk_with_markdown_header(text: str, params: MarkdownSplitterParams) -> List[Chunk]:
+def chunk_with_markdown_parser(text: str, params: MarkdownSplitterParams) -> List[Chunk]:
     """
-    Chunk text using LlamaIndex's Markdown header splitter.
+    Chunk text using LlamaIndex's Markdown node parser.
     
     Args:
         text: Text to chunk
@@ -259,15 +259,6 @@ def chunk_with_markdown_header(text: str, params: MarkdownSplitterParams) -> Lis
     chunks = []
     
     try:
-        # Convert headers_to_split_on to the format expected by MarkdownHeaderTextSplitter
-        # (list of tuples like [(#, "Header 1"), (##, "Header 2")])
-        headers_to_split_on = params.headers_to_split_on
-        
-        # Create a splitter
-        splitter = MarkdownHeaderTextSplitter(
-            headers_to_split_on=headers_to_split_on
-        )
-        
         # Create a Document from the text (trying to guess if it's markdown)
         # If it doesn't look like markdown, we'll attempt to convert some common
         # header patterns to markdown format
@@ -304,15 +295,24 @@ def chunk_with_markdown_header(text: str, params: MarkdownSplitterParams) -> Lis
         else:
             document = Document(text=text)
         
-        # Split the document - this returns documents, not nodes
-        documents = splitter.split_nodes([document])
+        # Create a MarkdownNodeParser
+        parser = MarkdownNodeParser()
         
-        # Convert documents to Chunk objects
-        for i, doc in enumerate(documents):
-            chunk_text = doc.text
+        # Parse the document into nodes
+        nodes = parser.get_nodes_from_documents([document])
+        
+        # Convert nodes to Chunk objects
+        for i, node in enumerate(nodes):
+            chunk_text = node.text
             
-            # Extract header info from metadata
-            metadata = dict(doc.metadata) if hasattr(doc, 'metadata') else {}
+            # Extract metadata from the node
+            metadata = dict(node.metadata) if hasattr(node, 'metadata') else {}
+            
+            # Add additional metadata
+            metadata.update({
+                "chunk_index": i,
+                "parser": "markdown"
+            })
             
             # Count tokens and characters
             token_count = count_tokens(chunk_text)
@@ -330,8 +330,8 @@ def chunk_with_markdown_header(text: str, params: MarkdownSplitterParams) -> Lis
             chunks.append(chunk)
             
     except Exception as e:
-        logging.error(f"Error in markdown header chunking: {e}")
-        raise ValueError(f"Failed to chunk text with markdown header splitter: {e}")
+        logging.error(f"Error in markdown parsing: {e}")
+        raise ValueError(f"Failed to chunk text with markdown parser: {e}")
     
     return chunks
 
@@ -339,7 +339,7 @@ def chunk_with_markdown_header(text: str, params: MarkdownSplitterParams) -> Lis
 CHUNKER_FUNCTIONS = {
     ChunkingStrategy.SIMPLE_RECURSIVE_SPLITTER.name: chunk_with_simple_recursive,
     ChunkingStrategy.SEMANTIC_CHUNKING_LLAMAINDEX.name: chunk_with_semantic,
-    ChunkingStrategy.MARKDOWN_HEADER_SPLITTER.name: chunk_with_markdown_header,
+    ChunkingStrategy.MARKDOWN_NODE_PARSER.name: chunk_with_markdown_parser,
 }
 
 def get_chunker_function(strategy_key: str) -> Callable:
