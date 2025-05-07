@@ -518,3 +518,176 @@ def register_routes(app):
             }), 500
     
     # PDF serving endpoint removed as we no longer store PDFs on disk
+    
+    @app.route('/compare-chunks/<report_id>')
+    def compare_chunks(report_id):
+        """Page for selecting chunking strategies to compare"""
+        report = Report.query.get_or_404(report_id)
+        
+        # Get the options for the chunking strategies
+        chunking_strategies = ChunkingStrategy.choices()
+        
+        return render_template('compare_chunks.html', 
+                              report=report,
+                              chunking_strategies=chunking_strategies)
+                              
+    @app.route('/process-chunks', methods=['POST'])
+    def process_chunks():
+        """Process a report with selected chunking strategies"""
+        report_id = request.form.get('report_id')
+        strategy_1 = request.form.get('strategy_1')
+        strategy_2 = request.form.get('strategy_2')
+        
+        # Get strategy parameters from form
+        # Convert form data with proper typing (ints, bools, etc.)
+        params_1 = {}
+        params_2 = {}
+        
+        # Extract and convert parameters for strategy 1
+        for key in request.form:
+            if key.startswith('params_1_'):
+                param_name = key[9:]  # Remove 'params_1_' prefix
+                value = request.form[key]
+                
+                # Handle different parameter types
+                if value.isdigit():
+                    params_1[param_name] = int(value)
+                elif value.lower() in ('true', 'false'):
+                    params_1[param_name] = value.lower() == 'true'
+                else:
+                    params_1[param_name] = value
+        
+        # Extract and convert parameters for strategy 2
+        for key in request.form:
+            if key.startswith('params_2_'):
+                param_name = key[9:]  # Remove 'params_2_' prefix
+                value = request.form[key]
+                
+                # Handle different parameter types
+                if value.isdigit():
+                    params_2[param_name] = int(value)
+                elif value.lower() in ('true', 'false'):
+                    params_2[param_name] = value.lower() == 'true'
+                else:
+                    params_2[param_name] = value
+                    
+        # Validate report ID
+        if not report_id:
+            flash('Report ID is required', 'danger')
+            return redirect(url_for('dashboard'))
+            
+        # Validate strategies
+        if not strategy_1 or not strategy_2:
+            flash('Two chunking strategies must be selected', 'danger')
+            return redirect(url_for('compare_chunks', report_id=report_id))
+            
+        try:
+            # Get report text
+            report = Report.query.get_or_404(report_id)
+            
+            # Get the clean text from the report
+            # Since we don't save the PDF content, we'll use the combined findings, recommendations,
+            # objectives, and overall conclusion as the text to chunk
+            report_text = f"{report.report_title}\n\n"
+            
+            if report.overall_conclusion:
+                report_text += f"OVERALL CONCLUSION\n{report.overall_conclusion}\n\n"
+                
+            if report.objectives:
+                report_text += "OBJECTIVES\n"
+                for obj in report.objectives:
+                    report_text += f"- {obj.objective_text}\n"
+                report_text += "\n"
+                
+            if report.findings:
+                report_text += "FINDINGS\n"
+                for finding in report.findings:
+                    report_text += f"- {finding.finding_text}\n"
+                report_text += "\n"
+                
+            if report.recommendations:
+                report_text += "RECOMMENDATIONS\n"
+                for rec in report.recommendations:
+                    report_text += f"- {rec.recommendation_text}\n"
+                report_text += "\n"
+                
+            # Add the report insight if available
+            if report.llm_insight:
+                report_text += f"AI INSIGHT\n{report.llm_insight}\n\n"
+            
+            # Get chunking functions
+            chunker_1 = get_chunker_function(strategy_1)
+            chunker_2 = get_chunker_function(strategy_2)
+            
+            # Get parameter models for each strategy
+            strategy_1_enum = ChunkingStrategy[strategy_1]
+            strategy_2_enum = ChunkingStrategy[strategy_2]
+            
+            # Create parameter models
+            params_model_1 = strategy_1_enum.param_model(**params_1)
+            params_model_2 = strategy_2_enum.param_model(**params_2)
+            
+            # Generate chunks
+            chunks_1 = chunker_1(report_text, params_model_1)
+            chunks_2 = chunker_2(report_text, params_model_2)
+            
+            # Calculate statistics
+            stats_1 = calculate_chunk_statistics(chunks_1)
+            stats_2 = calculate_chunk_statistics(chunks_2)
+            
+            # Create comparison data
+            comparison_data = {
+                'report_id': report_id,
+                'report_title': report.report_title,
+                'strategy_1': {
+                    'name': strategy_1,
+                    'display_name': strategy_1_enum.display_name,
+                    'params': params_model_1.dict()
+                },
+                'strategy_2': {
+                    'name': strategy_2,
+                    'display_name': strategy_2_enum.display_name,
+                    'params': params_model_2.dict()
+                },
+                'chunks_1': chunks_1,
+                'chunks_2': chunks_2,
+                'stats_1': stats_1,
+                'stats_2': stats_2
+            }
+            
+            # Store comparison data
+            storage = ChunkingComparisonStorage(app)
+            comparison_id = storage.store_chunking_comparison(comparison_data)
+            
+            # Redirect to comparison review page
+            return redirect(url_for('chunks_review', comparison_id=comparison_id))
+            
+        except Exception as e:
+            logging.error(f"Error processing chunks: {traceback.format_exc()}")
+            flash(f'Error processing chunks: {str(e)}', 'danger')
+            return redirect(url_for('compare_chunks', report_id=report_id))
+            
+    @app.route('/chunks-review/<comparison_id>')
+    def chunks_review(comparison_id):
+        """Page for reviewing chunking comparison results"""
+        storage = ChunkingComparisonStorage(app)
+        comparison_data = storage.get_chunking_comparison(comparison_id)
+        
+        if not comparison_data:
+            flash('Chunking comparison data not found or expired', 'danger')
+            return redirect(url_for('dashboard'))
+            
+        return render_template('chunks_review.html', 
+                               comparison_id=comparison_id,
+                               comparison_data=comparison_data)
+                               
+    @app.route('/api/chunk-comparison/<comparison_id>')
+    def get_chunk_comparison(comparison_id):
+        """API endpoint for fetching chunking comparison data"""
+        storage = ChunkingComparisonStorage(app)
+        comparison_data = storage.get_chunking_comparison(comparison_id)
+        
+        if not comparison_data:
+            return jsonify({'error': 'Chunking comparison data not found or expired'}), 404
+            
+        return jsonify(comparison_data)

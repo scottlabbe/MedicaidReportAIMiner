@@ -1,0 +1,360 @@
+{% extends "base.html" %}
+
+{% block title %}Chunking Comparison Results{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <h1 class="mb-4">Chunking Comparison Results</h1>
+    
+    <div class="spinner-border text-primary" role="status" id="loadingSpinner">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+    
+    <div id="comparisonContainer" class="d-none">
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <h3 id="reportTitle" class="mb-3"></h3>
+                <div class="d-flex justify-content-between mb-3">
+                    <a href="#" id="backToReportLink" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Back to Report
+                    </a>
+                    <a href="#" id="newComparisonLink" class="btn btn-outline-primary">
+                        <i class="bi bi-plus-circle"></i> New Comparison
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row g-4">
+            <!-- Strategy 1 Column -->
+            <div class="col-md-6">
+                <div class="card mb-4 border-primary">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0" id="strategy1Name">Strategy 1</h5>
+                    </div>
+                    <div class="card-body">
+                        <h6 class="card-subtitle mb-2 text-muted">Parameters</h6>
+                        <ul class="list-group list-group-flush mb-3" id="strategy1Params">
+                            <!-- Parameters will be loaded dynamically -->
+                        </ul>
+                        
+                        <h6 class="card-subtitle mb-2 text-muted">Statistics</h6>
+                        <ul class="list-group list-group-flush mb-3" id="strategy1Stats">
+                            <!-- Statistics will be loaded dynamically -->
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">Chunks</h5>
+                        <div class="form-check form-switch mt-2">
+                            <input class="form-check-input" type="checkbox" id="showMetadata1" checked>
+                            <label class="form-check-label" for="showMetadata1">Show Metadata</label>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="list-group list-group-flush" id="chunks1Container">
+                            <!-- Chunks will be loaded dynamically -->
+                            <div class="text-center py-5">Loading chunks...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Strategy 2 Column -->
+            <div class="col-md-6">
+                <div class="card mb-4 border-secondary">
+                    <div class="card-header bg-secondary text-white">
+                        <h5 class="mb-0" id="strategy2Name">Strategy 2</h5>
+                    </div>
+                    <div class="card-body">
+                        <h6 class="card-subtitle mb-2 text-muted">Parameters</h6>
+                        <ul class="list-group list-group-flush mb-3" id="strategy2Params">
+                            <!-- Parameters will be loaded dynamically -->
+                        </ul>
+                        
+                        <h6 class="card-subtitle mb-2 text-muted">Statistics</h6>
+                        <ul class="list-group list-group-flush mb-3" id="strategy2Stats">
+                            <!-- Statistics will be loaded dynamically -->
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">Chunks</h5>
+                        <div class="form-check form-switch mt-2">
+                            <input class="form-check-input" type="checkbox" id="showMetadata2" checked>
+                            <label class="form-check-label" for="showMetadata2">Show Metadata</label>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="list-group list-group-flush" id="chunks2Container">
+                            <!-- Chunks will be loaded dynamically -->
+                            <div class="text-center py-5">Loading chunks...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const comparisonId = '{{ comparison_id }}';
+    const apiUrl = `/api/chunk-comparison/${comparisonId}`;
+    
+    // Fetch comparison data
+    fetch(apiUrl)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Comparison data not found or expired');
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Hide spinner and show comparison container
+            document.getElementById('loadingSpinner').classList.add('d-none');
+            const comparisonContainer = document.getElementById('comparisonContainer');
+            comparisonContainer.classList.remove('d-none');
+            
+            // Set report title and links
+            document.getElementById('reportTitle').textContent = `Chunking Comparison for: ${data.report_title}`;
+            document.getElementById('backToReportLink').href = `/report/${data.report_id}`;
+            document.getElementById('newComparisonLink').href = `/compare-chunks/${data.report_id}`;
+            
+            // Populate strategy 1 info
+            document.getElementById('strategy1Name').textContent = data.strategy_1.display_name;
+            renderParameters('strategy1Params', data.strategy_1.params);
+            renderStatistics('strategy1Stats', data.stats_1);
+            renderChunks('chunks1Container', data.chunks_1);
+            
+            // Populate strategy 2 info
+            document.getElementById('strategy2Name').textContent = data.strategy_2.display_name;
+            renderParameters('strategy2Params', data.strategy_2.params);
+            renderStatistics('strategy2Stats', data.stats_2);
+            renderChunks('chunks2Container', data.chunks_2);
+            
+            // Setup metadata toggles
+            setupMetadataToggles();
+            
+            // Add the chunks containers to the syncable containers list
+            setupSynchronizedScrolling();
+        })
+        .catch(error => {
+            document.getElementById('loadingSpinner').classList.add('d-none');
+            alert(`Error loading comparison data: ${error.message}`);
+            window.location.href = '/';
+        });
+});
+
+function renderParameters(containerId, params) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = '';
+    
+    for (const [key, value] of Object.entries(params)) {
+        // Skip strategy_type parameter
+        if (key === 'strategy_type') continue;
+        
+        const li = document.createElement('li');
+        li.className = 'list-group-item d-flex justify-content-between align-items-center';
+        
+        // Format the parameter name to be more readable
+        const formattedKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        
+        // Format the value based on its type
+        let formattedValue = value;
+        if (Array.isArray(value)) {
+            formattedValue = value.join(', ');
+        } else if (typeof value === 'boolean') {
+            formattedValue = value ? 'Yes' : 'No';
+        }
+        
+        li.innerHTML = `
+            <span>${formattedKey}</span>
+            <span class="badge bg-primary rounded-pill">${formattedValue}</span>
+        `;
+        
+        container.appendChild(li);
+    }
+}
+
+function renderStatistics(containerId, stats) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = '';
+    
+    const statItems = [
+        { key: 'total_chunks', label: 'Total Chunks' },
+        { key: 'avg_chunk_length_tokens', label: 'Average Length (tokens)' },
+        { key: 'min_chunk_length_tokens', label: 'Min Length (tokens)' },
+        { key: 'max_chunk_length_tokens', label: 'Max Length (tokens)' },
+        { key: 'total_tokens', label: 'Total Tokens' },
+    ];
+    
+    statItems.forEach(item => {
+        const li = document.createElement('li');
+        li.className = 'list-group-item d-flex justify-content-between align-items-center';
+        
+        let value = stats[item.key];
+        // Format numbers 
+        if (typeof value === 'number' && !Number.isInteger(value)) {
+            value = value.toFixed(1);
+        }
+        
+        li.innerHTML = `
+            <span>${item.label}</span>
+            <span class="badge bg-info rounded-pill">${value}</span>
+        `;
+        
+        container.appendChild(li);
+    });
+}
+
+function renderChunks(containerId, chunks) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = '';
+    
+    if (!chunks || chunks.length === 0) {
+        container.innerHTML = '<div class="text-center py-5">No chunks generated</div>';
+        return;
+    }
+    
+    chunks.forEach((chunk, index) => {
+        const chunkItem = document.createElement('div');
+        chunkItem.className = 'list-group-item chunk-item';
+        
+        // Create header with chunk ID and stats
+        const header = document.createElement('div');
+        header.className = 'd-flex justify-content-between align-items-center mb-2';
+        header.innerHTML = `
+            <strong>Chunk #${index + 1}</strong>
+            <span class="text-muted">
+                <span class="badge bg-secondary me-1">${chunk.token_count} tokens</span>
+                <span class="badge bg-secondary">${chunk.char_count} chars</span>
+            </span>
+        `;
+        
+        // Create text container with fixed height and scrolling
+        const textContainer = document.createElement('div');
+        textContainer.className = 'text-container border p-2 mb-2 bg-light';
+        textContainer.style.height = '150px';
+        textContainer.style.overflow = 'auto';
+        textContainer.style.whiteSpace = 'pre-wrap';
+        textContainer.style.fontSize = '0.9rem';
+        textContainer.textContent = chunk.chunk_text;
+        
+        // Create metadata section (initially visible)
+        const metadataContainer = document.createElement('div');
+        metadataContainer.className = 'metadata-container small mt-2';
+        
+        // Format metadata as a table
+        const metadataTable = document.createElement('table');
+        metadataTable.className = 'table table-sm table-bordered metadata-table';
+        metadataTable.innerHTML = '<thead><tr><th>Key</th><th>Value</th></tr></thead>';
+        
+        const tbody = document.createElement('tbody');
+        for (const [key, value] of Object.entries(chunk.metadata)) {
+            const row = document.createElement('tr');
+            const keyCell = document.createElement('td');
+            keyCell.textContent = key;
+            const valueCell = document.createElement('td');
+            
+            // Format the value based on its type
+            if (typeof value === 'object') {
+                valueCell.textContent = JSON.stringify(value);
+            } else {
+                valueCell.textContent = value;
+            }
+            
+            row.appendChild(keyCell);
+            row.appendChild(valueCell);
+            tbody.appendChild(row);
+        }
+        
+        metadataTable.appendChild(tbody);
+        metadataContainer.appendChild(metadataTable);
+        
+        // Assemble chunk item
+        chunkItem.appendChild(header);
+        chunkItem.appendChild(textContainer);
+        chunkItem.appendChild(metadataContainer);
+        
+        container.appendChild(chunkItem);
+    });
+}
+
+function setupMetadataToggles() {
+    // Toggle metadata visibility for strategy 1
+    document.getElementById('showMetadata1').addEventListener('change', function() {
+        const metadataContainers = document.querySelectorAll('#chunks1Container .metadata-container');
+        metadataContainers.forEach(container => {
+            container.style.display = this.checked ? 'block' : 'none';
+        });
+    });
+    
+    // Toggle metadata visibility for strategy 2
+    document.getElementById('showMetadata2').addEventListener('change', function() {
+        const metadataContainers = document.querySelectorAll('#chunks2Container .metadata-container');
+        metadataContainers.forEach(container => {
+            container.style.display = this.checked ? 'block' : 'none';
+        });
+    });
+}
+
+function setupSynchronizedScrolling() {
+    // Get all text containers
+    const textContainers = document.querySelectorAll('.text-container');
+    let isSyncingScroll = false; // Flag to prevent recursive sync
+
+    textContainers.forEach(container => {
+        container.addEventListener('scroll', function() {
+            if (isSyncingScroll) {
+                return; // This scroll was triggered by our sync, ignore it
+            }
+
+            isSyncingScroll = true; // We are now initiating a sync
+
+            // Guard against division by zero if the source container isn't scrollable
+            const scrollableHeightThis = this.scrollHeight - this.clientHeight;
+            if (scrollableHeightThis <= 0) {
+                // If the source container isn't scrollable or fully scrolled,
+                // decide how to sync others (e.g., scroll them to top or bottom based on this.scrollTop)
+                // For simplicity, if it's not scrollable, we might not need to sync aggressively
+                // or just set other containers to scrollTop 0 if this.scrollTop is 0.
+                textContainers.forEach(otherContainer => {
+                    if (otherContainer !== this) {
+                        otherContainer.scrollTop = this.scrollTop; // Simplistic sync for non-fractional
+                    }
+                });
+
+                requestAnimationFrame(() => {
+                    isSyncingScroll = false;
+                });
+                return;
+            }
+            
+            const scrollPercentage = this.scrollTop / scrollableHeightThis;
+            
+            textContainers.forEach(otherContainer => {
+                if (otherContainer !== this) {
+                    const scrollableHeightOther = otherContainer.scrollHeight - otherContainer.clientHeight;
+                    if (scrollableHeightOther > 0) {
+                        const targetScroll = scrollPercentage * scrollableHeightOther;
+                        otherContainer.scrollTop = targetScroll;
+                    } else {
+                        // If other container isn't scrollable, set based on percentage
+                        otherContainer.scrollTop = scrollPercentage > 0.5 ? otherContainer.scrollHeight : 0;
+                    }
+                }
+            });
+
+            requestAnimationFrame(() => {
+                isSyncingScroll = false;
+            });
+        });
+    });
+}
+</script>
+{% endblock %}

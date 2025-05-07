@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+
+{% block title %}Compare Chunking Strategies{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h1 class="mb-4">Compare Chunking Strategies</h1>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Report Details</h5>
+        </div>
+        <div class="card-body">
+            <h4>{{ report.report_title }}</h4>
+            <p><strong>ID:</strong> {{ report.id }}</p>
+            <p><strong>Organization:</strong> {{ report.audit_organization }}</p>
+            <p><strong>Publication Date:</strong> {{ report.publication_year }}-{{ report.publication_month }}-{{ report.publication_day if report.publication_day else "" }}</p>
+        </div>
+    </div>
+    
+    <form action="{{ url_for('process_chunks') }}" method="post">
+        <input type="hidden" name="report_id" value="{{ report.id }}">
+        
+        <div class="row g-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Chunking Strategy 1</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="strategy_1" class="form-label">Strategy</label>
+                            <select class="form-select" id="strategy_1" name="strategy_1" required onchange="loadStrategyParams(1, this.value)">
+                                <option value="">Select a chunking strategy</option>
+                                {% for key, display_name in chunking_strategies %}
+                                <option value="{{ key }}">{{ display_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div id="strategy_1_params" class="strategy-params">
+                            <!-- Parameters will be loaded dynamically -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-secondary text-white">
+                        <h5 class="mb-0">Chunking Strategy 2</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="strategy_2" class="form-label">Strategy</label>
+                            <select class="form-select" id="strategy_2" name="strategy_2" required onchange="loadStrategyParams(2, this.value)">
+                                <option value="">Select a chunking strategy</option>
+                                {% for key, display_name in chunking_strategies %}
+                                <option value="{{ key }}">{{ display_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div id="strategy_2_params" class="strategy-params">
+                            <!-- Parameters will be loaded dynamically -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+            <a href="{{ url_for('report_detail', report_id=report.id) }}" class="btn btn-outline-secondary me-md-2">Cancel</a>
+            <button type="submit" class="btn btn-primary">Compare Strategies</button>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initial parameter loading
+    const strategy1 = document.getElementById('strategy_1');
+    const strategy2 = document.getElementById('strategy_2');
+    
+    // Default to first two strategies if available
+    if (strategy1.options.length > 1) {
+        strategy1.selectedIndex = 1;
+        loadStrategyParams(1, strategy1.value);
+    }
+    
+    if (strategy2.options.length > 2) {
+        strategy2.selectedIndex = 2;
+        loadStrategyParams(2, strategy2.value);
+    } else if (strategy2.options.length > 1) {
+        strategy2.selectedIndex = 1;
+        loadStrategyParams(2, strategy2.value);
+    }
+});
+
+// Strategy parameter definitions
+const strategyParams = {
+    'SIMPLE_RECURSIVE_SPLITTER': [
+        { name: 'chunk_size', label: 'Chunk Size (tokens)', type: 'number', default: 512, min: 50, max: 2048 },
+        { name: 'chunk_overlap', label: 'Chunk Overlap (tokens)', type: 'number', default: 50, min: 0, max: 200 },
+        { name: 'split_method', label: 'Split Method', type: 'select', default: 'token', 
+          options: [
+              { value: 'token', label: 'By Token Count' },
+              { value: 'sentence', label: 'By Sentences' }
+          ] 
+        }
+    ],
+    'SEMANTIC_CHUNKING_LLAMAINDEX': [
+        { name: 'chunk_size', label: 'Chunk Size (tokens)', type: 'number', default: 512, min: 50, max: 2048 },
+        { name: 'chunk_overlap', label: 'Chunk Overlap (tokens)', type: 'number', default: 50, min: 0, max: 200 },
+        { name: 'breakpoint_percentile_threshold', label: 'Breakpoint Percentile Threshold', type: 'number', default: 95, min: 50, max: 100 }
+    ],
+    'MARKDOWN_HEADER_SPLITTER': [
+        { name: 'chunk_size', label: 'Chunk Size (tokens)', type: 'number', default: 512, min: 50, max: 2048 }
+        // The headers to split on would typically be configured in the backend
+    ]
+};
+
+function loadStrategyParams(strategyNum, strategyKey) {
+    const paramsContainer = document.getElementById(`strategy_${strategyNum}_params`);
+    paramsContainer.innerHTML = '';
+    
+    if (!strategyKey || !strategyParams[strategyKey]) {
+        return;
+    }
+    
+    const params = strategyParams[strategyKey];
+    
+    params.forEach(param => {
+        const formGroup = document.createElement('div');
+        formGroup.className = 'mb-3';
+        
+        const label = document.createElement('label');
+        label.className = 'form-label';
+        label.setAttribute('for', `params_${strategyNum}_${param.name}`);
+        label.textContent = param.label;
+        formGroup.appendChild(label);
+        
+        if (param.type === 'number') {
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.className = 'form-control';
+            input.id = `params_${strategyNum}_${param.name}`;
+            input.name = `params_${strategyNum}_${param.name}`;
+            input.value = param.default;
+            
+            if (param.min !== undefined) input.min = param.min;
+            if (param.max !== undefined) input.max = param.max;
+            
+            formGroup.appendChild(input);
+        } else if (param.type === 'select') {
+            const select = document.createElement('select');
+            select.className = 'form-select';
+            select.id = `params_${strategyNum}_${param.name}`;
+            select.name = `params_${strategyNum}_${param.name}`;
+            
+            param.options.forEach(option => {
+                const optionElement = document.createElement('option');
+                optionElement.value = option.value;
+                optionElement.textContent = option.label;
+                if (option.value === param.default) {
+                    optionElement.selected = true;
+                }
+                select.appendChild(optionElement);
+            });
+            
+            formGroup.appendChild(select);
+        } else if (param.type === 'checkbox') {
+            const checkDiv = document.createElement('div');
+            checkDiv.className = 'form-check';
+            
+            const input = document.createElement('input');
+            input.type = 'checkbox';
+            input.className = 'form-check-input';
+            input.id = `params_${strategyNum}_${param.name}`;
+            input.name = `params_${strategyNum}_${param.name}`;
+            if (param.default) input.checked = true;
+            
+            const checkLabel = document.createElement('label');
+            checkLabel.className = 'form-check-label';
+            checkLabel.setAttribute('for', `params_${strategyNum}_${param.name}`);
+            checkLabel.textContent = param.label;
+            
+            checkDiv.appendChild(input);
+            checkDiv.appendChild(checkLabel);
+            formGroup.appendChild(checkDiv);
+        }
+        
+        paramsContainer.appendChild(formGroup);
+    });
+}
+</script>
+{% endblock %}
