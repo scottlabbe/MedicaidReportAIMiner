@@ -233,7 +233,7 @@
                                         </button>
                                         <div class="mb-3">
                                             <label class="form-label">Objective Text</label>
-                                            <textarea class="form-control objective-text" rows="2">{{ objective.objective_text }}</textarea>
+                                            <textarea class="form-control objective-text" rows="2">{{ objective }}</textarea>
                                         </div>
                                     </div>
                                     {% endfor %}
@@ -259,11 +259,7 @@
                                         </button>
                                         <div class="mb-3">
                                             <label class="form-label">Finding Text</label>
-                                            <textarea class="form-control finding-text" rows="2">{{ finding.finding_text }}</textarea>
-                                        </div>
-                                        <div class="mb-0">
-                                            <label class="form-label">Financial Impact ($)</label>
-                                            <input type="number" class="form-control financial-impact" value="{{ finding.financial_impact }}" step="0.01">
+                                            <textarea class="form-control finding-text" rows="2">{{ finding }}</textarea>
                                         </div>
                                     </div>
                                     {% endfor %}
@@ -289,7 +285,7 @@
                                         </button>
                                         <div class="mb-0">
                                             <label class="form-label">Recommendation Text</label>
-                                            <textarea class="form-control recommendation-text" rows="2">{{ recommendation.recommendation_text }}</textarea>
+                                            <textarea class="form-control recommendation-text" rows="2">{{ recommendation }}</textarea>
                                         </div>
                                     </div>
                                     {% endfor %}
@@ -401,7 +397,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     document.getElementById('addFindingBtn').addEventListener('click', function() {
-        addFinding('', null);
+        addFinding('');
     });
     
     document.getElementById('addRecommendationBtn').addEventListener('click', function() {
@@ -464,7 +460,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Add new finding function
-    function addFinding(text, financialImpact) {
+    function addFinding(text) {
         const findingsList = document.getElementById('findingsList');
         
         const div = document.createElement('div');
@@ -476,10 +472,6 @@ document.addEventListener('DOMContentLoaded', function() {
             <div class="mb-3">
                 <label class="form-label">Finding Text</label>
                 <textarea class="form-control finding-text" rows="2">${text}</textarea>
-            </div>
-            <div class="mb-0">
-                <label class="form-label">Financial Impact ($)</label>
-                <input type="number" class="form-control financial-impact" value="${financialImpact || ''}" step="0.01">
             </div>
         `;
         
@@ -559,21 +551,20 @@ document.addEventListener('DOMContentLoaded', function() {
             state: document.getElementById('state').value, // Required field
             audit_scope: document.getElementById('audit_scope').value, // Required field
             
-            // Get objectives
-            objectives: Array.from(document.querySelectorAll('.objective-item')).map(item => ({
-                objective_text: item.querySelector('.objective-text').value
-            })),
+            // Get objectives (simplified as string array)
+            objectives: Array.from(document.querySelectorAll('.objective-item'))
+                .map(item => item.querySelector('.objective-text').value.trim())
+                .filter(text => text.length > 0),
             
-            // Get findings
-            findings: Array.from(document.querySelectorAll('.finding-item')).map(item => ({
-                finding_text: item.querySelector('.finding-text').value,
-                financial_impact: item.querySelector('.financial-impact').value ? parseFloat(item.querySelector('.financial-impact').value) : null
-            })),
+            // Get findings (simplified as string array)
+            findings: Array.from(document.querySelectorAll('.finding-item'))
+                .map(item => item.querySelector('.finding-text').value.trim())
+                .filter(text => text.length > 0),
             
-            // Get recommendations
-            recommendations: Array.from(document.querySelectorAll('.recommendation-item')).map(item => ({
-                recommendation_text: item.querySelector('.recommendation-text').value
-            })),
+            // Get recommendations (simplified as string array)
+            recommendations: Array.from(document.querySelectorAll('.recommendation-item'))
+                .map(item => item.querySelector('.recommendation-text').value.trim())
+                .filter(text => text.length > 0),
             
             // Get keywords
             extracted_keywords: Array.from(document.querySelectorAll('.keyword-item')).map(item => {
