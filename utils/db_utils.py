@@ -121,21 +121,23 @@ def save_report_to_db(report_data, file_metadata, ai_log):
                 )
                 db.session.add(recommendation)
         
-        # Add keywords
+        # Add keywords - with many-to-many relationship
         if is_dict:
-            for kw in report_data['extracted_keywords']:
-                keyword = Keyword(
-                    report_id=report.id,
-                    keyword_text=kw
-                )
-                db.session.add(keyword)
+            keyword_texts = report_data['extracted_keywords']
         else:
-            for kw in report_data.extracted_keywords:
-                keyword = Keyword(
-                    report_id=report.id,
-                    keyword_text=kw
-                )
+            keyword_texts = report_data.extracted_keywords
+            
+        for kw_text in keyword_texts:
+            # Check if keyword already exists
+            keyword = Keyword.query.filter_by(keyword_text=kw_text).first()
+            if not keyword:
+                # Create new keyword if it doesn't exist
+                keyword = Keyword(keyword_text=kw_text)
                 db.session.add(keyword)
+                db.session.flush()  # Flush to get the keyword ID
+            
+            # Add keyword to report's keywords collection
+            report.keywords.append(keyword)
         
         # Add AI processing log
         is_ai_log_dict = isinstance(ai_log, dict)
@@ -228,18 +230,23 @@ def update_report_in_db(report_id, updated_data):
                 )
                 db.session.add(recommendation)
         
-        # Update keywords
+        # Update keywords - with many-to-many relationship
         if 'keywords' in updated_data:
-            # Delete existing keywords
-            Keyword.query.filter_by(report_id=report_id).delete()
+            # Clear existing keyword associations
+            report.keywords = []
             
             # Add updated keywords
-            for kw_data in updated_data['keywords']:
-                keyword = Keyword(
-                    report_id=report_id,
-                    keyword_text=kw_data
-                )
-                db.session.add(keyword)
+            for kw_text in updated_data['keywords']:
+                # Check if keyword already exists
+                keyword = Keyword.query.filter_by(keyword_text=kw_text).first()
+                if not keyword:
+                    # Create new keyword if it doesn't exist
+                    keyword = Keyword(keyword_text=kw_text)
+                    db.session.add(keyword)
+                    db.session.flush()  # Flush to get the keyword ID
+                
+                # Add keyword to report's keywords collection
+                report.keywords.append(keyword)
         
         # Update timestamp
         report.updated_at = datetime.utcnow()

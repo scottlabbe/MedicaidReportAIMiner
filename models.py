@@ -1,7 +1,15 @@
 from datetime import datetime
 from app import db
-from sqlalchemy import Column, Integer, String, Text, Boolean, Float, Date, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, String, Text, Boolean, Float, Date, ForeignKey, DateTime, Table
 from sqlalchemy.orm import relationship
+
+# Association table for the many-to-many relationship between Report and Keyword
+report_keywords_association = Table(
+    'report_keywords_association',
+    db.Model.metadata,
+    Column('report_id', Integer, ForeignKey('reports.id'), primary_key=True),
+    Column('keyword_id', Integer, ForeignKey('keywords.id'), primary_key=True)
+)
 
 class Report(db.Model):
     __tablename__ = 'reports'
@@ -36,7 +44,9 @@ class Report(db.Model):
     findings = relationship("Finding", back_populates="report", cascade="all, delete-orphan")
     recommendations = relationship("Recommendation", back_populates="report", cascade="all, delete-orphan")
     objectives = relationship("Objective", back_populates="report", cascade="all, delete-orphan")
-    keywords = relationship("Keyword", back_populates="report", cascade="all, delete-orphan")
+    keywords = relationship("Keyword", 
+                           secondary=report_keywords_association,
+                           back_populates="reports")
     ai_logs = relationship("AIProcessingLog", back_populates="report", cascade="all, delete-orphan")
     
     def __repr__(self):
@@ -91,14 +101,15 @@ class Keyword(db.Model):
     __tablename__ = 'keywords'
     
     id = Column(Integer, primary_key=True)
-    report_id = Column(Integer, ForeignKey('reports.id'), nullable=False)
-    keyword_text = Column(String(100), nullable=False)
+    keyword_text = Column(String(100), nullable=False, unique=True)
     
-    # Relationships
-    report = relationship("Report", back_populates="keywords")
+    # Relationships - many-to-many with Report
+    reports = relationship("Report", 
+                         secondary=report_keywords_association,
+                         back_populates="keywords")
     
     def __repr__(self):
-        return f"<Keyword {self.keyword_text} for Report {self.report_id}>"
+        return f"<Keyword {self.keyword_text}>"
 
 
 class AIProcessingLog(db.Model):

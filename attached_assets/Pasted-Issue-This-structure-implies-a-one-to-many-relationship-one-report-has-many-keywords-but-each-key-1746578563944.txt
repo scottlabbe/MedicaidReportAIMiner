@@ -1,0 +1,57 @@
+Issue: This structure implies a one-to-many relationship (one report has many keywords, but each keyword instance belongs to only one report). Our plan was for a many-to-many relationship:
+A single report can have many keywords.
+A single keyword (e.g., "billing errors") can be associated with many different reports.
+Required Database Structure for Many-to-Many:
+A keywords table to store unique keyword strings:
+CREATE TABLE keywords_actual ( -- Renaming to avoid conflict with your current model name for now
+    id SERIAL PRIMARY KEY,
+    keyword_text VARCHAR(255) NOT NULL UNIQUE
+);
+Use code with caution.
+SQL
+A report_keywords junction table (association table):
+CREATE TABLE report_keywords_junction (
+    report_id INTEGER NOT NULL REFERENCES reports(id) ON DELETE CASCADE,
+    keyword_id INTEGER NOT NULL REFERENCES keywords_actual(id) ON DELETE CASCADE,
+    PRIMARY KEY (report_id, keyword_id)
+);
+Use code with caution.
+SQL
+SQLAlchemy Implementation for Many-to-Many:
+You need an association table defined in SQLAlchemy, and then use the secondary argument in the relationship definition.
+# Association table for the many-to-many relationship between Report and KeywordActual
+report_keywords_association = db.Table('report_keywords_association', db.Model.metadata,
+    Column('report_id', Integer, ForeignKey('reports.id'), primary_key=True),
+    Column('keyword_id', Integer, ForeignKey('keywords_actual.id'), primary_key=True)
+)
+
+class Report(db.Model):
+    # ... (other fields) ...
+    # Relationship to KeywordActual (many-to-many)
+    keywords = relationship("KeywordActual",
+                            secondary=report_keywords_association,
+                            back_populates="reports")
+    # ...
+
+class KeywordActual(db.Model): # Renamed from your Keyword to reflect unique keywords
+    __tablename__ = 'keywords_actual' # Name of the table storing unique keywords
+    
+    id = Column(Integer, primary_key=True)
+    keyword_text = Column(String(100), nullable=False, unique=True) # Keywords should be unique
+    
+    # Relationship to Report (many-to-many)
+    reports = relationship("Report",
+                           secondary=report_keywords_association,
+                           back_populates="keywords")
+
+    def __repr__(self):
+        return f"<KeywordActual {self.keyword_text}>"
+Use code with caution.
+Python
+Changes Needed:
+Rename your current Keyword model to something like KeywordActual or UniqueKeyword to represent the table of unique keyword strings.
+Remove report_id and the direct report relationship from this KeywordActual model.
+Add unique=True to keyword_text in KeywordActual.
+Define the report_keywords_association table.
+Update the keywords relationship in the Report model to use secondary=report_keywords_association and point to KeywordActual.
+Add a reports relationship in the KeywordActual model, also using the secondary argument.
