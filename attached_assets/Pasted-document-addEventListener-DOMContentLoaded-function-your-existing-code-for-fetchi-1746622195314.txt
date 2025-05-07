@@ -1,0 +1,57 @@
+document.addEventListener('DOMContentLoaded', function() {
+    // ... (your existing code for fetching data, copy, toggle AI) ...
+
+    // Synchronize scroll between text panels
+    const textContainers = document.querySelectorAll('.text-container');
+    let isSyncingScroll = false; // Flag to prevent recursive sync
+
+    textContainers.forEach(container => {
+        container.addEventListener('scroll', function() {
+            if (isSyncingScroll) {
+                return; // This scroll was triggered by our sync, ignore it
+            }
+
+            isSyncingScroll = true; // We are now initiating a sync
+
+            // Guard against division by zero if the source container isn't scrollable
+            const scrollableHeightThis = this.scrollHeight - this.clientHeight;
+            if (scrollableHeightThis <= 0) {
+                // If the source container isn't scrollable or fully scrolled,
+                // decide how to sync others (e.g., scroll them to top or bottom based on this.scrollTop)
+                // For simplicity, if it's not scrollable, we might not need to sync aggressively
+                // or just set other containers to scrollTop 0 if this.scrollTop is 0.
+                // Let's assume if it's not scrollable, we don't propagate fractional scrolls.
+                textContainers.forEach(otherContainer => {
+                    if (otherContainer !== this) {
+                        otherContainer.scrollTop = this.scrollTop; // Simplistic sync for non-fractional
+                    }
+                });
+
+                requestAnimationFrame(() => {
+                    isSyncingScroll = false;
+                });
+                return;
+            }
+            
+            const scrollPercentage = this.scrollTop / scrollableHeightThis;
+            
+            textContainers.forEach(otherContainer => {
+                if (otherContainer !== this) {
+                    const scrollableHeightOther = otherContainer.scrollHeight - otherContainer.clientHeight;
+                    if (scrollableHeightOther > 0) {
+                        const targetScroll = scrollPercentage * scrollableHeightOther;
+                        otherContainer.scrollTop = targetScroll;
+                    } else {
+                        // If other container isn't scrollable, set based on percentage
+                        otherContainer.scrollTop = scrollPercentage > 0.5 ? otherContainer.scrollHeight : 0;
+                    }
+                }
+            });
+
+            requestAnimationFrame(() => {
+                isSyncingScroll = false;
+            });
+        });
+    });
+});
+</script>
