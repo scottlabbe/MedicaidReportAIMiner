@@ -13,7 +13,7 @@ from utils.pdf_utils import (
     process_keywords, process_uploaded_file_memory
 )
 from utils.ai_extraction import extract_data_with_openai
-from utils.db_utils import check_duplicate_report, save_report_to_db, update_report_in_db
+from utils.db_utils import check_duplicate_report, save_report_to_db, update_report_in_db, print_report_data
 
 def register_routes(app):
     @app.route('/')

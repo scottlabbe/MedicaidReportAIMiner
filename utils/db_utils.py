@@ -1,4 +1,5 @@
 import logging
+import json
 from datetime import datetime
 from flask import current_app
 from app import db
@@ -261,3 +262,109 @@ def update_report_in_db(report_id, updated_data):
         db.session.rollback()
         logging.error(f"Error updating report in database: {e}")
         raise ValueError(f"Failed to update report in database: {e}")
+
+
+def print_report_data(report_id=None, report=None):
+    """
+    Print the report data in a structured format to the console.
+    
+    Args:
+        report_id: ID of the report to print (optional if report object is provided)
+        report: Report object to print (optional if report_id is provided)
+        
+    Returns:
+        None
+    """
+    try:
+        # Get the report if only ID is provided
+        if report is None and report_id is not None:
+            report = Report.query.get(report_id)
+            
+        if report is None:
+            logging.error("No report provided for printing")
+            return
+            
+        # Create a structured representation
+        report_dict = {
+            "REPORT DETAILS": {
+                "ID": report.id,
+                "Title": report.report_title,
+                "Audit Organization": report.audit_organization,
+                "Publication Date": f"{report.publication_year}-{report.publication_month:02d}-{report.publication_day or 'N/A'}",
+                "State": report.state,
+                "Audit Scope": report.audit_scope,
+                "File Details": {
+                    "Original Filename": report.original_filename,
+                    "File Size": f"{report.file_size_bytes:,} bytes",
+                    "File Hash": report.file_hash
+                },
+                "Overall Conclusion": report.overall_conclusion,
+                "AI Insight": report.llm_insight,
+                "Potential Objective Summary": report.potential_objective_summary,
+                "Original Report URL": report.original_report_source_url or "N/A",
+                "Status": report.status,
+                "Processing Status": report.processing_status,
+                "Created": report.created_at.strftime("%Y-%m-%d %H:%M:%S") if report.created_at else "N/A",
+                "Last Updated": report.updated_at.strftime("%Y-%m-%d %H:%M:%S") if report.updated_at else "N/A"
+            },
+            "OBJECTIVES": [],
+            "FINDINGS": [],
+            "RECOMMENDATIONS": [],
+            "KEYWORDS": [],
+            "AI PROCESSING LOGS": []
+        }
+        
+        # Add objectives
+        for obj in report.objectives:
+            report_dict["OBJECTIVES"].append({
+                "ID": obj.id,
+                "Text": obj.objective_text
+            })
+            
+        # Add findings
+        for finding in report.findings:
+            report_dict["FINDINGS"].append({
+                "ID": finding.id,
+                "Text": finding.finding_text,
+                "Financial Impact": f"${finding.financial_impact:,.2f}" if finding.financial_impact else "N/A"
+            })
+            
+        # Add recommendations
+        for rec in report.recommendations:
+            report_dict["RECOMMENDATIONS"].append({
+                "ID": rec.id,
+                "Text": rec.recommendation_text,
+                "Related Finding ID": rec.related_finding_id or "N/A"
+            })
+            
+        # Add keywords
+        for kw in report.keywords:
+            report_dict["KEYWORDS"].append(kw.keyword_text)
+            
+        # Add AI processing logs
+        for log in report.ai_logs:
+            report_dict["AI PROCESSING LOGS"].append({
+                "ID": log.id,
+                "Model": log.model_name,
+                "Status": log.extraction_status,
+                "Tokens": f"{log.total_tokens:,} ({log.input_tokens:,} in, {log.output_tokens:,} out)",
+                "Cost": f"${log.total_cost:.6f}",
+                "Processing Time": f"{log.processing_time_ms:,} ms",
+                "Error": log.error_details or "None"
+            })
+        
+        # Print the structured report
+        print("\n" + "="*80)
+        print(f"REPORT DATA FOR: {report.report_title}")
+        print("="*80 + "\n")
+        
+        # Print the report in a nicely formatted way
+        print(json.dumps(report_dict, indent=2))
+        
+        print("\n" + "="*80)
+        print("END OF REPORT DATA")
+        print("="*80 + "\n")
+        
+    except Exception as e:
+        logging.error(f"Error printing report data: {e}")
+        print(f"Error printing report data: {e}")
