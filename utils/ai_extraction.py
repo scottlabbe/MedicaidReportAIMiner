@@ -24,7 +24,7 @@ class Recommendation(BaseModel):
     related_finding_index: Optional[int] = Field(None, description="The index of the related finding, if available (0-based)")
 
 class ReportData(BaseModel):
-    report_title: str = Field(..., description="The full title of the audit report")
+    report_title: str = Field(..., description="The full title of the audit report, converted to standard title case (e.g., 'Annual Audit Report') even if it appears in all caps in the source.")
     audit_organization: str = Field(..., description="The organization that conducted the audit")
     publication_year: int = Field(..., description="The year the report was published (4-digit)")
     publication_month: int = Field(..., description="The month the report was published (1-12)")
