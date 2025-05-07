@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 # Try importing LlamaIndex components
 try:
     from llama_index.core.node_parser import TokenTextSplitter, SentenceSplitter
-    from llama_index.core.node_parser import MarkdownHeaderTextSplitter
+    from llama_index.core.node_parser import MarkdownNodeParser  # Changed from MarkdownHeaderTextSplitter
     from llama_index.core.node_parser import SemanticSplitterNodeParser
     from llama_index.core.schema import Document
     LLAMA_INDEX_AVAILABLE = True
@@ -50,17 +50,9 @@ class SemanticSplitterParams(BaseModel):
     )
 
 class MarkdownSplitterParams(BaseModel):
-    """Parameters for Markdown header text splitter."""
-    strategy_type: Literal["MARKDOWN_HEADER_SPLITTER"] = "MARKDOWN_HEADER_SPLITTER"
+    """Parameters for Markdown node parser."""
+    strategy_type: Literal["MARKDOWN_NODE_PARSER"] = "MARKDOWN_NODE_PARSER"
     chunk_size: int = Field(default=512, gt=0, description="Target chunk size in tokens")
-    headers_to_split_on: List[tuple] = Field(
-        default=[
-            ("#", "Header 1"),
-            ("##", "Header 2"),
-            ("###", "Header 3"),
-        ],
-        description="List of header tuples (markdown_header, display_name) to split on"
-    )
 
 # Chunking Strategy Enum
 class ChunkingStrategy(Enum):
