@@ -72,7 +72,8 @@
                             </div>
                             
                             <div class="col-md-6 mb-3">
-                                <label for="state" class="form-label">State (2-letter code) *</label>
+                                <label for="state" class="form-label">State/Federal (2-letter code) *</label>
+                                <small class="form-text text-muted">Use 'US' for federal agencies</small>
                                 <select class="form-select" id="state" required>
                                     <option value="">-- Select State --</option>
                                     <option value="AL" {% if report.state == "AL" %}selected{% endif %}>Alabama (AL)</option>
@@ -131,6 +132,7 @@
                                     <option value="MP" {% if report.state == "MP" %}selected{% endif %}>Northern Mariana Islands (MP)</option>
                                     <option value="PR" {% if report.state == "PR" %}selected{% endif %}>Puerto Rico (PR)</option>
                                     <option value="VI" {% if report.state == "VI" %}selected{% endif %}>U.S. Virgin Islands (VI)</option>
+                                    <option value="US" {% if report.state == "US" %}selected{% endif %}>Federal/Nationwide (US)</option>
                                 </select>
                             </div>
                         </div>
