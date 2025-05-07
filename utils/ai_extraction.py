@@ -36,7 +36,7 @@ class ReportData(BaseModel):
     llm_insight: str = Field(..., description="An AI-generated summary/insight about the report")
     potential_objective_summary: Optional[str] = Field(None, description="An AI-generated summary of the objectives")
     original_report_source_url: Optional[str] = Field(None, description="URL to the original report, if available")
-    state: str = Field(..., description="The US state code related to the report (e.g., 'NY', 'CA')")
+    state: str = Field(..., description="The US state code related to the report (e.g., 'NY', 'CA'). Use 'US' for federal agencies and nationwide reports.")
     audit_scope: str = Field(..., description="The scope of the audit, including only the time period.")
     extracted_keywords: List[str] = Field([], description="Relevant keywords extracted from the report content")
 
