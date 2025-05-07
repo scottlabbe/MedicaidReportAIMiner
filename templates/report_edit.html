@@ -222,10 +222,6 @@
                                     <label class="form-label">Finding Text</label>
                                     <textarea class="form-control finding-text" rows="3">{{ finding.finding_text }}</textarea>
                                 </div>
-                                <div>
-                                    <label class="form-label">Financial Impact ($)</label>
-                                    <input type="number" class="form-control financial-impact" step="0.01" value="{{ finding.financial_impact if finding.financial_impact else '' }}">
-                                </div>
                             </div>
                             {% endfor %}
                         </div>
@@ -325,10 +321,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 <label class="form-label">Finding Text</label>
                 <textarea class="form-control finding-text" rows="3"></textarea>
             </div>
-            <div>
-                <label class="form-label">Financial Impact ($)</label>
-                <input type="number" class="form-control financial-impact" step="0.01">
-            </div>
         `;
         container.appendChild(newItem);
     });
@@ -354,38 +346,30 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('editForm').addEventListener('submit', function(e) {
         e.preventDefault();
         
-        // Collect objectives
+        // Collect objectives (simplified as string array)
         const objectives = [];
         document.querySelectorAll('.objective-item').forEach(item => {
             const text = item.querySelector('.objective-text').value.trim();
             if (text) {
-                objectives.push({
-                    objective_text: text
-                });
+                objectives.push(text);
             }
         });
         
-        // Collect findings
+        // Collect findings (simplified as string array)
         const findings = [];
         document.querySelectorAll('.finding-item').forEach(item => {
             const text = item.querySelector('.finding-text').value.trim();
             if (text) {
-                const financial_impact = item.querySelector('.financial-impact').value;
-                findings.push({
-                    finding_text: text,
-                    financial_impact: financial_impact ? parseFloat(financial_impact) : null
-                });
+                findings.push(text);
             }
         });
         
-        // Collect recommendations
+        // Collect recommendations (simplified as string array)
         const recommendations = [];
         document.querySelectorAll('.recommendation-item').forEach(item => {
             const text = item.querySelector('.recommendation-text').value.trim();
             if (text) {
-                recommendations.push({
-                    recommendation_text: text
-                });
+                recommendations.push(text);
             }
         });
         
