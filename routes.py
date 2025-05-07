@@ -203,8 +203,7 @@ def register_routes(app):
                     ai_log
                 )
                 
-                # Print the report data to console
-                print_report_data(report=report)
+                # Report successfully saved
                 
                 # Clean up session data
                 app.config.pop(f'temp_extraction_{temp_id}', None)
@@ -241,8 +240,7 @@ def register_routes(app):
         """Page for viewing a single report's details"""
         report = Report.query.get_or_404(report_id)
         
-        # Print the report data to console
-        print_report_data(report=report)
+        # Report detail access
         
         return render_template('report_detail.html', report=report)
     
@@ -264,8 +262,7 @@ def register_routes(app):
                 # Update in database
                 report = update_report_in_db(report_id, updated_data)
                 
-                # Print the updated report data to console
-                print_report_data(report=report)
+                # Report successfully updated
                 
                 flash('Report updated successfully', 'success')
                 return redirect(url_for('report_detail', report_id=report.id))
