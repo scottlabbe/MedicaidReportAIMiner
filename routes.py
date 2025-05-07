@@ -17,6 +17,8 @@ from utils.ai_extraction import extract_data_with_openai
 from utils.db_utils import check_duplicate_report, save_report_to_db, update_report_in_db, print_report_data
 from utils.parser_strategies import ParsingStrategy, get_parser_function
 from utils.comparison_storage import ComparisonStorage
+from utils.chunking_strategies import ChunkingStrategy, get_chunker_function, calculate_chunk_statistics
+from utils.chunking_storage import ChunkingComparisonStorage
 
 def register_routes(app):
     @app.route('/')
