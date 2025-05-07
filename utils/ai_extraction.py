@@ -110,6 +110,11 @@ def extract_data_with_openai(pdf_text, api_key):
             temperature=0.1  # Low temperature for more deterministic output
         )
         
+        # Print raw AI response to console
+        print("\n=== RAW AI EXTRACTION RESPONSE ===")
+        print(response)
+        print("=== END OF RAW AI EXTRACTION RESPONSE ===\n")
+        
         # Calculate processing time
         processing_time = int((time.time() - start_time) * 1000)  # ms
         
