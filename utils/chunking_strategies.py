@@ -12,8 +12,9 @@ try:
     from llama_index.core.node_parser import SemanticSplitterNodeParser
     from llama_index.core.schema import Document
     LLAMA_INDEX_AVAILABLE = True
-except ImportError:
-    logging.warning("LlamaIndex not available. Some chunking strategies will not be available.")
+    logging.info("LlamaIndex successfully imported")
+except ImportError as e:
+    logging.warning(f"LlamaIndex not available: {str(e)}. Some chunking strategies will not be available.")
     LLAMA_INDEX_AVAILABLE = False
 
 # Define the Chunk model
