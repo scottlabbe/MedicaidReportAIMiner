@@ -98,8 +98,8 @@
                                     </div>
                                     
                                     <div class="col-md-6 mb-3">
-                                        <label for="state" class="form-label">State (2-letter code)</label>
-                                        <select class="form-select" id="state">
+                                        <label for="state" class="form-label">State (2-letter code) *</label>
+                                        <select class="form-select" id="state" required>
                                             <option value="">-- Select State --</option>
                                             <option value="AL" {% if report_data.state == "AL" %}selected{% endif %}>Alabama (AL)</option>
                                             <option value="AK" {% if report_data.state == "AK" %}selected{% endif %}>Alaska (AK)</option>
@@ -202,8 +202,8 @@
                             <div class="form-section">
                                 <h6>Audit Scope</h6>
                                 <div class="mb-3">
-                                    <label for="audit_scope" class="form-label">Scope Description</label>
-                                    <textarea class="form-control" id="audit_scope" rows="3">{{ report_data.audit_scope }}</textarea>
+                                    <label for="audit_scope" class="form-label">Scope Description *</label>
+                                    <textarea class="form-control" id="audit_scope" rows="3" required>{{ report_data.audit_scope }}</textarea>
                                 </div>
                             </div>
                         </div>
@@ -554,8 +554,8 @@ document.addEventListener('DOMContentLoaded', function() {
             llm_insight: document.getElementById('llm_insight').value,
             potential_objective_summary: document.getElementById('potential_objective_summary')?.value || null,
             original_report_source_url: document.getElementById('original_report_source_url').value || null,
-            state: document.getElementById('state').value || null, // This is now a dropdown with valid 2-letter state codes
-            audit_scope: document.getElementById('audit_scope').value || null,
+            state: document.getElementById('state').value, // Required field
+            audit_scope: document.getElementById('audit_scope').value, // Required field
             
             // Get objectives
             objectives: Array.from(document.querySelectorAll('.objective-item')).map(item => ({
