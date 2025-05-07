@@ -72,8 +72,8 @@
                             </div>
                             
                             <div class="col-md-6 mb-3">
-                                <label for="state" class="form-label">State (2-letter code)</label>
-                                <select class="form-select" id="state">
+                                <label for="state" class="form-label">State (2-letter code) *</label>
+                                <select class="form-select" id="state" required>
                                     <option value="">-- Select State --</option>
                                     <option value="AL" {% if report.state == "AL" %}selected{% endif %}>Alabama (AL)</option>
                                     <option value="AK" {% if report.state == "AK" %}selected{% endif %}>Alaska (AK)</option>
@@ -151,8 +151,8 @@
                         </div>
                         
                         <div class="mb-3">
-                            <label for="audit_scope" class="form-label">Scope Description</label>
-                            <textarea class="form-control" id="audit_scope" rows="2">{{ report.audit_scope }}</textarea>
+                            <label for="audit_scope" class="form-label">Scope Description *</label>
+                            <textarea class="form-control" id="audit_scope" rows="2" required>{{ report.audit_scope }}</textarea>
                         </div>
                         
                         <div class="mb-3">
