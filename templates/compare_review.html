@@ -1,0 +1,411 @@
+{% extends 'layout.html' %}
+
+{% block head_content %}
+<style>
+/* Custom styles for comparison view */
+.comparison-container {
+    position: relative;
+    min-height: 500px;
+}
+
+.text-container {
+    max-height: 500px;
+    overflow-y: auto;
+    font-family: monospace;
+    white-space: pre-wrap;
+    background-color: var(--bs-dark);
+    color: var(--bs-light);
+    border-radius: 0.25rem;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    overflow-x: hidden;
+}
+
+.ai-results-container {
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    z-index: 1000;
+    color: white;
+}
+
+.extraction-field {
+    margin-bottom: 1rem;
+}
+
+.extraction-field label {
+    font-weight: bold;
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+.extraction-field .value {
+    background-color: var(--bs-dark);
+    padding: 0.5rem;
+    border-radius: 0.25rem;
+    white-space: pre-wrap;
+}
+
+.extraction-list-item {
+    margin-bottom: 0.5rem;
+    padding: 0.5rem;
+    background-color: var(--bs-dark);
+    border-radius: 0.25rem;
+}
+
+.parser-header {
+    border-bottom: 2px solid var(--bs-primary);
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+}
+
+.copy-btn {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    z-index: 10;
+}
+
+/* Loading spinner for initial data loading */
+.initial-loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    height: 300px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-dark d-flex justify-content-between align-items-center">
+                    <h2 class="mb-0">
+                        <i class="fas fa-exchange-alt me-2"></i> Parser Comparison Results
+                    </h2>
+                    <a href="{{ url_for('compare_upload') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-plus me-1"></i> New Comparison
+                    </a>
+                </div>
+                <div class="card-body">
+                    <div id="initialLoading" class="initial-loading">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">Loading comparison data...</p>
+                    </div>
+                    
+                    <div id="comparisonContainer" class="d-none">
+                        <div class="mb-4">
+                            <h4 id="filenameDisplay"></h4>
+                            <div class="d-flex justify-content-end">
+                                <button id="toggleAIResults" class="btn btn-sm btn-outline-secondary me-2 d-none">
+                                    <i class="fas fa-robot me-1"></i> <span id="toggleAIText">Show AI Results</span>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <!-- Parser 1 -->
+                            <div class="col-md-6 mb-4">
+                                <div class="card">
+                                    <div class="card-header parser-header">
+                                        <h4 id="parser1Name" class="mb-0"></h4>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="parser1Error" class="alert alert-danger d-none">
+                                            <i class="fas fa-exclamation-triangle me-1"></i> <span id="parser1ErrorText"></span>
+                                        </div>
+                                        
+                                        <h5>Extracted Text:</h5>
+                                        <div class="position-relative mb-4">
+                                            <button class="btn btn-sm btn-outline-primary copy-btn" data-target="parser1Text">
+                                                <i class="fas fa-copy"></i> Copy
+                                            </button>
+                                            <div id="parser1Text" class="text-container p-3">
+                                                <div class="p-3 text-center text-muted">Loading...</div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- AI Extraction Results (hidden by default) -->
+                                        <div id="parser1AI" class="ai-results-container d-none">
+                                            <h5>AI Extraction Results:</h5>
+                                            <div id="parser1AIError" class="alert alert-warning d-none">
+                                                <i class="fas fa-exclamation-triangle me-1"></i> <span id="parser1AIErrorText"></span>
+                                            </div>
+                                            <div id="parser1AISummary" class="extraction-field">
+                                                <label>Report Title:</label>
+                                                <div class="value" id="parser1AITitle"></div>
+                                            </div>
+                                            <div class="extraction-field">
+                                                <label>Overall Conclusion:</label>
+                                                <div class="value" id="parser1AIConclusion"></div>
+                                            </div>
+                                            <div class="extraction-field">
+                                                <label>Objectives:</label>
+                                                <div id="parser1AIObjectives"></div>
+                                            </div>
+                                            <div class="extraction-field">
+                                                <label>Findings:</label>
+                                                <div id="parser1AIFindings"></div>
+                                            </div>
+                                            <div class="extraction-field">
+                                                <label>Recommendations:</label>
+                                                <div id="parser1AIRecommendations"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Parser 2 -->
+                            <div class="col-md-6 mb-4">
+                                <div class="card">
+                                    <div class="card-header parser-header">
+                                        <h4 id="parser2Name" class="mb-0"></h4>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="parser2Error" class="alert alert-danger d-none">
+                                            <i class="fas fa-exclamation-triangle me-1"></i> <span id="parser2ErrorText"></span>
+                                        </div>
+                                        
+                                        <h5>Extracted Text:</h5>
+                                        <div class="position-relative mb-4">
+                                            <button class="btn btn-sm btn-outline-primary copy-btn" data-target="parser2Text">
+                                                <i class="fas fa-copy"></i> Copy
+                                            </button>
+                                            <div id="parser2Text" class="text-container p-3">
+                                                <div class="p-3 text-center text-muted">Loading...</div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- AI Extraction Results (hidden by default) -->
+                                        <div id="parser2AI" class="ai-results-container d-none">
+                                            <h5>AI Extraction Results:</h5>
+                                            <div id="parser2AIError" class="alert alert-warning d-none">
+                                                <i class="fas fa-exclamation-triangle me-1"></i> <span id="parser2AIErrorText"></span>
+                                            </div>
+                                            <div id="parser2AISummary" class="extraction-field">
+                                                <label>Report Title:</label>
+                                                <div class="value" id="parser2AITitle"></div>
+                                            </div>
+                                            <div class="extraction-field">
+                                                <label>Overall Conclusion:</label>
+                                                <div class="value" id="parser2AIConclusion"></div>
+                                            </div>
+                                            <div class="extraction-field">
+                                                <label>Objectives:</label>
+                                                <div id="parser2AIObjectives"></div>
+                                            </div>
+                                            <div class="extraction-field">
+                                                <label>Findings:</label>
+                                                <div id="parser2AIFindings"></div>
+                                            </div>
+                                            <div class="extraction-field">
+                                                <label>Recommendations:</label>
+                                                <div id="parser2AIRecommendations"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const comparisonId = '{{ comparison_id }}';
+    const initialLoading = document.getElementById('initialLoading');
+    const comparisonContainer = document.getElementById('comparisonContainer');
+    const toggleAIResults = document.getElementById('toggleAIResults');
+    const toggleAIText = document.getElementById('toggleAIText');
+    
+    // Copy button functionality
+    document.querySelectorAll('.copy-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const targetId = this.getAttribute('data-target');
+            const text = document.getElementById(targetId).textContent;
+            
+            navigator.clipboard.writeText(text).then(() => {
+                const originalText = this.innerHTML;
+                this.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                setTimeout(() => {
+                    this.innerHTML = originalText;
+                }, 2000);
+            });
+        });
+    });
+    
+    // Toggle AI results visibility
+    toggleAIResults.addEventListener('click', function() {
+        const aiContainers = document.querySelectorAll('.ai-results-container');
+        const isShowing = aiContainers[0].classList.contains('d-none');
+        
+        aiContainers.forEach(container => {
+            if (isShowing) {
+                container.classList.remove('d-none');
+                toggleAIText.textContent = 'Hide AI Results';
+            } else {
+                container.classList.add('d-none');
+                toggleAIText.textContent = 'Show AI Results';
+            }
+        });
+    });
+    
+    // Helper function to create a list of items
+    function createListItems(items, containerId) {
+        const container = document.getElementById(containerId);
+        container.innerHTML = '';
+        
+        if (!items || items.length === 0) {
+            container.innerHTML = '<div class="extraction-list-item text-muted">None found</div>';
+            return;
+        }
+        
+        items.forEach((item, index) => {
+            const div = document.createElement('div');
+            div.className = 'extraction-list-item';
+            div.innerHTML = `<strong>${index + 1}.</strong> ${item}`;
+            container.appendChild(div);
+        });
+    }
+    
+    // Fetch comparison data
+    fetch(`/api/comparison/${comparisonId}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Comparison data not found or expired');
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Hide loading, show content
+            initialLoading.classList.add('d-none');
+            comparisonContainer.classList.remove('d-none');
+            
+            // Set filename
+            document.getElementById('filenameDisplay').textContent = `File: ${data.filename}`;
+            
+            // Parser 1
+            document.getElementById('parser1Name').textContent = data.parser_name_1;
+            if (data.error_1) {
+                document.getElementById('parser1Error').classList.remove('d-none');
+                document.getElementById('parser1ErrorText').textContent = data.error_1;
+            }
+            if (data.raw_text_1) {
+                document.getElementById('parser1Text').textContent = data.raw_text_1;
+                if (data.raw_text_1_truncated) {
+                    document.getElementById('parser1Text').innerHTML += 
+                        '<div class="alert alert-warning mt-3">Text has been truncated due to size.</div>';
+                }
+            } else {
+                document.getElementById('parser1Text').innerHTML = 
+                    '<div class="p-3 text-center text-muted">No text extracted</div>';
+            }
+            
+            // Parser 2
+            document.getElementById('parser2Name').textContent = data.parser_name_2;
+            if (data.error_2) {
+                document.getElementById('parser2Error').classList.remove('d-none');
+                document.getElementById('parser2ErrorText').textContent = data.error_2;
+            }
+            if (data.raw_text_2) {
+                document.getElementById('parser2Text').textContent = data.raw_text_2;
+                if (data.raw_text_2_truncated) {
+                    document.getElementById('parser2Text').innerHTML += 
+                        '<div class="alert alert-warning mt-3">Text has been truncated due to size.</div>';
+                }
+            } else {
+                document.getElementById('parser2Text').innerHTML = 
+                    '<div class="p-3 text-center text-muted">No text extracted</div>';
+            }
+            
+            // AI Extraction Results
+            if (data.run_ai_extraction) {
+                toggleAIResults.classList.remove('d-none');
+                
+                // Parser 1 AI Results
+                if (data.structured_data_1) {
+                    const sd1 = data.structured_data_1;
+                    document.getElementById('parser1AITitle').textContent = sd1.report_title || 'Not found';
+                    document.getElementById('parser1AIConclusion').textContent = sd1.overall_conclusion || 'Not found';
+                    
+                    createListItems(sd1.objectives, 'parser1AIObjectives');
+                    createListItems(sd1.findings, 'parser1AIFindings');
+                    createListItems(sd1.recommendations, 'parser1AIRecommendations');
+                } else if (data.error_1) {
+                    document.getElementById('parser1AIError').classList.remove('d-none');
+                    document.getElementById('parser1AIErrorText').textContent = data.error_1;
+                }
+                
+                // Parser 2 AI Results
+                if (data.structured_data_2) {
+                    const sd2 = data.structured_data_2;
+                    document.getElementById('parser2AITitle').textContent = sd2.report_title || 'Not found';
+                    document.getElementById('parser2AIConclusion').textContent = sd2.overall_conclusion || 'Not found';
+                    
+                    createListItems(sd2.objectives, 'parser2AIObjectives');
+                    createListItems(sd2.findings, 'parser2AIFindings');
+                    createListItems(sd2.recommendations, 'parser2AIRecommendations');
+                } else if (data.error_2) {
+                    document.getElementById('parser2AIError').classList.remove('d-none');
+                    document.getElementById('parser2AIErrorText').textContent = data.error_2;
+                }
+            }
+        })
+        .catch(error => {
+            initialLoading.classList.add('d-none');
+            comparisonContainer.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-circle me-2"></i>
+                    Error: ${error.message}
+                </div>
+                <div class="text-center">
+                    <a href="${window.location.origin}/compare-upload" class="btn btn-primary">
+                        <i class="fas fa-arrow-left me-1"></i> Back to Upload
+                    </a>
+                </div>
+            `;
+            comparisonContainer.classList.remove('d-none');
+        });
+    
+    // Synchronize scroll between text panels
+    const textContainers = document.querySelectorAll('.text-container');
+    
+    textContainers.forEach(container => {
+        container.addEventListener('scroll', function() {
+            const scrollPercentage = this.scrollTop / (this.scrollHeight - this.clientHeight);
+            
+            textContainers.forEach(otherContainer => {
+                if (otherContainer !== this) {
+                    const targetScroll = scrollPercentage * (otherContainer.scrollHeight - otherContainer.clientHeight);
+                    otherContainer.scrollTop = targetScroll;
+                }
+            });
+        });
+    });
+});
+</script>
+{% endblock %}

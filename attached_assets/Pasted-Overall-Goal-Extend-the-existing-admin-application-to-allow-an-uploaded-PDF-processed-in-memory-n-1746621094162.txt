@@ -1,0 +1,82 @@
+Overall Goal:
+Extend the existing admin application to allow an uploaded PDF (processed in-memory, not stored long-term for this tool) to be parsed using two user-selected PDF parsing strategies. The extracted raw text from both strategies will be displayed side-by-side on a new comparison review page. Optionally, but highly recommended, run the existing AI structured data extraction on both raw text outputs and display those structured results side-by-side as well.
+
+I. Backend Modifications (Python/FastAPI):
+
+Define Parsing Strategies (Enum & Implementations):
+Create a Python Enum named ParsingStrategy to define available parsing methods. Each member should have a human-readable name for the UI.
+Implement a distinct Python function for each parsing strategy. Each function will accept a file-like object (BytesIO stream from the uploaded PDF) or a temporary file path (if absolutely necessary for a library, but prefer in-memory) and return a single string of extracted text.
+Specific Strategies to Implement:
+CURRENT_METHOD: (Your existing default PDF parsing method. Please provide its implementation details or a reference to it.) Name: "Current Method".
+PYMUPDF_SIMPLE_TEXT: Uses PyMuPDF (fitz). Extracts text page by page using page.get_text("text"). Concatenate text from all pages. Name: "PyMuPDF (Simple Text)".
+PYMUPDF_BLOCKS_SORTED: Uses PyMuPDF (fitz). For each page, gets text blocks using page.get_text("blocks"). Sort these blocks first by their top y-coordinate, then by their left x-coordinate to reconstruct reading order. Concatenate text from sorted blocks for all pages. Name: "PyMuPDF (Blocks Sorted)".
+PYMUPDF_WORDS_RECONSTRUCTED: Uses PyMuPDF (fitz). For each page, gets individual words using page.get_text("words"). Attempt to reconstruct lines and paragraphs by sorting words and heuristically inserting spaces and newlines based on word coordinates and proximity. This is more complex but can yield good results. Name: "PyMuPDF (Words Reconstructed)".
+UNSTRUCTURED_FAST: Uses the unstructured library. Calls partition_pdf(file=uploaded_file_object, strategy="fast"). Concatenate the text from the returned elements. Ensure error handling if dependencies for unstructured are complex. Name: "Unstructured.io (Fast)".
+(Optional - Good to have) PDFPLUMBER_DEFAULT: Uses the pdfplumber library. Opens the PDF and extracts text using page.extract_text(). Concatenate text from all pages. Name: "PDFPlumber (Default)".
+Modify Upload Endpoint/Logic (e.g., /upload_for_comparison):
+Create a new endpoint or modify an existing one. This endpoint is specifically for the comparison tool.
+The endpoint accepts an uploaded PDF file and two string identifiers for the chosen parsing strategies (e.g., parser_key_1, parser_key_2 from the ParsingStrategy Enum names).
+No PDF Storage: Process the uploaded PDF file in-memory (e.g., using io.BytesIO(uploaded_file.read())) or via a strictly temporary file that is deleted immediately after both parsing operations are complete. Do not save the PDF to persistent storage for this feature.
+The backend will:
+Invoke the parsing function for parser_key_1 with the PDF data, yielding raw_text_1.
+Invoke the parsing function for parser_key_2 with the PDF data, yielding raw_text_2.
+(Highly Recommended - AI Extraction Step):
+Call your existing AI structured data extraction function (e.g., extract_data_with_openai) on raw_text_1 to get structured_data_1 (Pydantic ReportData object) and ai_log_1.
+Call the same AI function on raw_text_2 to get structured_data_2 and ai_log_2.
+Temporary Data Storage: Store the results (parser_key_1 name, raw_text_1, structured_data_1 (as JSON), ai_log_1 (as JSON), and similarly for strategy 2) temporarily. This data needs to be associated with a unique session identifier (comparison_id). Options for temporary storage:
+Server-side session (if your framework supports it well for larger data).
+A simple cache (like a Python dictionary in memory for a single-instance app, or a Redis cache if available) keyed by comparison_id. Data should have a short expiry.
+Return a JSON response to the frontend indicating success and including the comparison_id, or redirect to the comparison review page with the comparison_id.
+New Backend Endpoint to Serve Comparison Data (e.g., /api/comparison_results/{comparison_id}):
+This GET endpoint takes the comparison_id.
+It retrieves the temporarily stored parsing and AI extraction results for that ID.
+It returns the data as a JSON object to the frontend. This allows the comparison page to be loaded and then fetch its data dynamically.
+II. Frontend Modifications (HTML/Jinja2 & JavaScript):
+
+Modify/Create Upload Page for Comparison:
+On your admin dashboard, provide a clear link or section for the "PDF Parser Comparison Tool."
+This leads to an upload form.
+The form includes a file input for the PDF.
+Add two dropdown select elements: "Select Parser 1" and "Select Parser 2".
+These dropdowns should be populated with the human-readable names from the ParsingStrategy Enum. The value for each option should be the Enum member's name (e.g., "PYMUPDF_SIMPLE_TEXT").
+On submission, this form POSTs to the /upload_for_comparison endpoint.
+After successful submission (receiving the comparison_id), JavaScript should redirect the user to the "Comparison Review" page, appending the comparison_id as a URL parameter (e.g., /compare_review?id={comparison_id}).
+New "Comparison Review" Page Template (compare_review.html):
+On page load, JavaScript will extract the comparison_id from the URL.
+It will then make an AJAX (fetch) request to /api/comparison_results/{comparison_id} to get the comparison data.
+Layout: Implement a clear two-column side-by-side layout.
+Column 1 (Parser 1):
+Display "Parser: [Name of Parser Strategy 1]".
+Display raw_text_1 in a scrollable <pre> tag or read-only textarea.
+If AI extraction was performed: Display structured_data_1 fields (Report Title, Objectives list, Findings list, etc.) in a readable, structured format (similar to your existing review page, but read-only).
+If AI extraction was performed: Display key info from ai_log_1.
+Column 2 (Parser 2):
+Display "Parser: [Name of Parser Strategy 2]".
+Display raw_text_2 in a scrollable <pre> tag or read-only textarea.
+If AI extraction was performed: Display structured_data_2 fields.
+If AI extraction was performed: Display key info from ai_log_2.
+(Advanced Feature - Raw Text Diff): If feasible, implement a client-side text diff view (e.g., using jsdiff library) to highlight differences between raw_text_1 and raw_text_2. This would require JavaScript to process the raw texts and render the diff.
+User Action: The primary purpose is viewing. There should be no "Save to Database" functionality on this page.
+Consider a "Start New Comparison" button to go back to the comparison upload page.
+III. Implementation Notes for AI Model:
+
+Modularity of Parsers: Emphasize that each parsing strategy function should be self-contained and easy to add or modify.
+In-Memory Processing: Stress the importance of handling the PDF upload in memory (BytesIO) to avoid disk writes, and if temporary files are unavoidable for a specific library, ensure they are cleaned up immediately.
+Error Handling: Robust error handling is needed for file uploads, each parsing attempt, and each AI extraction attempt. If one parser fails, the tool should still try to display results for the other and indicate the failure.
+Frontend Data Fetching: Explain that the comparison review page should dynamically fetch its data using JavaScript after loading, based on the comparison_id.
+Clear UI: The side-by-side view needs to be very clear, with distinct sections for raw text and (if included) the structured AI output for each parser.
+Example ParsingStrategy Enum (Python):
+
+from enum import Enum
+
+class ParsingStrategy(Enum):
+    CURRENT_METHOD = "Current Method"
+    PYMUPDF_SIMPLE_TEXT = "PyMuPDF (Simple Text)"
+    PYMUPDF_BLOCKS_SORTED = "PyMuPDF (Blocks Sorted)"
+    PYMUPDF_WORDS_RECONSTRUCTED = "PyMuPDF (Words Reconstructed)"
+    UNSTRUCTURED_FAST = "Unstructured.io (Fast)"
+    # PDFPLUMBER_DEFAULT = "PDFPlumber (Default)" # Add if implementing
+
+    @classmethod
+    defchoices(cls):
+        return [(member.name, member.value) for member in cls]

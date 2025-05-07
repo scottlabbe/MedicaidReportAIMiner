@@ -3,6 +3,7 @@ import io
 import json
 import hashlib
 import logging
+import traceback
 from flask import render_template, request, redirect, url_for, flash, jsonify, current_app
 from werkzeug.utils import secure_filename
 from app import db
@@ -14,6 +15,8 @@ from utils.pdf_utils import (
 )
 from utils.ai_extraction import extract_data_with_openai
 from utils.db_utils import check_duplicate_report, save_report_to_db, update_report_in_db, print_report_data
+from utils.parser_strategies import ParsingStrategy, get_parser_function
+from utils.comparison_storage import ComparisonStorage
 
 def register_routes(app):
     @app.route('/')
@@ -266,6 +269,167 @@ def register_routes(app):
         reports = Report.query.order_by(Report.created_at.desc()).paginate(page=page, per_page=per_page)
         
         return render_template('reports.html', reports=reports)
+        
+    @app.route('/compare-upload', methods=['GET'])
+    def compare_upload():
+        """Page for uploading PDFs to compare parsing strategies"""
+        parser_choices = ParsingStrategy.choices()
+        return render_template('compare_upload.html', parser_choices=parser_choices)
+        
+    @app.route('/compare-process', methods=['POST'])
+    def compare_process():
+        """Process uploaded PDF with selected parsers and store results"""
+        # Check if files were uploaded
+        if 'pdf_file' not in request.files:
+            flash('No file selected', 'danger')
+            return redirect(url_for('compare_upload'))
+            
+        pdf_file = request.files['pdf_file']
+        
+        # If no file was selected
+        if pdf_file.filename == '':
+            flash('No file selected', 'danger')
+            return redirect(url_for('compare_upload'))
+            
+        # Check if the file is a PDF
+        if not pdf_file.filename.lower().endswith('.pdf'):
+            flash('Only PDF files are allowed', 'danger')
+            return redirect(url_for('compare_upload'))
+            
+        # Get parser selections
+        parser_key_1 = request.form.get('parser_key_1')
+        parser_key_2 = request.form.get('parser_key_2')
+        
+        # Check if parsers are selected
+        if not parser_key_1 or not parser_key_2:
+            flash('Please select two parsing strategies', 'danger')
+            return redirect(url_for('compare_upload'))
+        
+        # Check if AI extraction is enabled
+        run_ai_extraction = request.form.get('run_ai_extraction') == 'on'
+        
+        try:
+            # Initialize response data
+            comparison_data = {
+                'filename': secure_filename(pdf_file.filename),
+                'parser_key_1': parser_key_1,
+                'parser_key_2': parser_key_2,
+                'parser_name_1': ParsingStrategy[parser_key_1].value if parser_key_1 in ParsingStrategy.__members__ else parser_key_1,
+                'parser_name_2': ParsingStrategy[parser_key_2].value if parser_key_2 in ParsingStrategy.__members__ else parser_key_2,
+                'raw_text_1': None,
+                'raw_text_2': None,
+                'structured_data_1': None,
+                'structured_data_2': None,
+                'ai_log_1': None,
+                'ai_log_2': None,
+                'error_1': None,
+                'error_2': None,
+                'run_ai_extraction': run_ai_extraction
+            }
+            
+            # Process the file in memory
+            pdf_content = pdf_file.read()
+            
+            # Create BytesIO object for the PDF content
+            pdf_io_1 = io.BytesIO(pdf_content)
+            pdf_io_2 = io.BytesIO(pdf_content)
+            
+            # Process with parser 1
+            try:
+                parser_func_1 = get_parser_function(parser_key_1)
+                raw_text_1 = parser_func_1(pdf_io_1)
+                comparison_data['raw_text_1'] = raw_text_1
+                
+                # If AI extraction is enabled, run it
+                if run_ai_extraction:
+                    try:
+                        api_key = app.config.get('OPENAI_API_KEY')
+                        if not api_key:
+                            comparison_data['error_1'] = "OpenAI API key not configured"
+                        else:
+                            report_data_1, ai_log_1 = extract_data_with_openai(raw_text_1, api_key)
+                            comparison_data['structured_data_1'] = report_data_1.dict()
+                            comparison_data['ai_log_1'] = ai_log_1.dict()
+                    except Exception as e:
+                        logging.error(f"Error in AI extraction for parser 1: {e}")
+                        comparison_data['error_1'] = f"AI extraction error: {str(e)}"
+            except Exception as e:
+                logging.error(f"Error in parser 1 ({parser_key_1}): {e}")
+                comparison_data['error_1'] = str(e)
+            
+            # Process with parser 2
+            try:
+                parser_func_2 = get_parser_function(parser_key_2)
+                raw_text_2 = parser_func_2(pdf_io_2)
+                comparison_data['raw_text_2'] = raw_text_2
+                
+                # If AI extraction is enabled, run it
+                if run_ai_extraction:
+                    try:
+                        api_key = app.config.get('OPENAI_API_KEY')
+                        if not api_key:
+                            comparison_data['error_2'] = "OpenAI API key not configured"
+                        else:
+                            report_data_2, ai_log_2 = extract_data_with_openai(raw_text_2, api_key)
+                            comparison_data['structured_data_2'] = report_data_2.dict()
+                            comparison_data['ai_log_2'] = ai_log_2.dict()
+                    except Exception as e:
+                        logging.error(f"Error in AI extraction for parser 2: {e}")
+                        comparison_data['error_2'] = f"AI extraction error: {str(e)}"
+            except Exception as e:
+                logging.error(f"Error in parser 2 ({parser_key_2}): {e}")
+                comparison_data['error_2'] = str(e)
+            
+            # Store comparison data
+            storage = ComparisonStorage(app)
+            comparison_id = storage.store_comparison(comparison_data)
+            
+            # Redirect to comparison review page
+            return redirect(url_for('compare_review', comparison_id=comparison_id))
+            
+        except Exception as e:
+            logging.error(f"Error processing PDF for comparison: {e}")
+            logging.error(traceback.format_exc())
+            flash(f'Error processing PDF: {str(e)}', 'danger')
+            return redirect(url_for('compare_upload'))
+            
+    @app.route('/compare-review/<comparison_id>')
+    def compare_review(comparison_id):
+        """Page for reviewing parser comparison results"""
+        # Access stored comparison data
+        storage = ComparisonStorage(app)
+        comparison_data = storage.get_comparison(comparison_id)
+        
+        if not comparison_data:
+            flash('Comparison data not found or expired', 'danger')
+            return redirect(url_for('compare_upload'))
+            
+        return render_template('compare_review.html', 
+                             comparison_id=comparison_id,
+                             comparison_data=comparison_data)
+                             
+    @app.route('/api/comparison/<comparison_id>')
+    def get_comparison(comparison_id):
+        """API endpoint for fetching comparison data"""
+        storage = ComparisonStorage(app)
+        comparison_data = storage.get_comparison(comparison_id)
+        
+        if not comparison_data:
+            return jsonify({'error': 'Comparison data not found or expired'}), 404
+            
+        # We need to limit the size of the response
+        # Let's create a copy with truncated raw text if it's too large
+        response_data = dict(comparison_data)
+        
+        if response_data.get('raw_text_1') and len(response_data['raw_text_1']) > 100000:
+            response_data['raw_text_1'] = response_data['raw_text_1'][:100000] + "\n\n... [truncated] ..."
+            response_data['raw_text_1_truncated'] = True
+        
+        if response_data.get('raw_text_2') and len(response_data['raw_text_2']) > 100000:
+            response_data['raw_text_2'] = response_data['raw_text_2'][:100000] + "\n\n... [truncated] ..."
+            response_data['raw_text_2_truncated'] = True
+            
+        return jsonify(response_data)
     
     @app.route('/report/<int:report_id>')
     def report_detail(report_id):

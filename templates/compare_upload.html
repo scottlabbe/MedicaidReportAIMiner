@@ -1,0 +1,149 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-dark">
+                    <h2 class="mb-0">
+                        <i class="fas fa-exchange-alt me-2"></i> PDF Parser Comparison
+                    </h2>
+                </div>
+                <div class="card-body">
+                    <p class="lead">
+                        Upload a PDF file and select two parsing strategies to compare their text extraction results side-by-side.
+                        Optionally, you can also run AI structured data extraction on both outputs to compare how different parsing
+                        strategies affect the AI extraction results.
+                    </p>
+                    
+                    <div class="alert alert-info" role="alert">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>About this tool:</strong> This comparison tool processes PDFs in memory and doesn't save them to disk.
+                        Comparison results are stored temporarily for 30 minutes.
+                    </div>
+                    
+                    <!-- Upload Form -->
+                    <form method="POST" action="{{ url_for('compare_process') }}" enctype="multipart/form-data" class="mb-4">
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h5 class="mb-0">Select PDF File</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label for="pdf_file" class="form-label">PDF File</label>
+                                    <input type="file" class="form-control" id="pdf_file" name="pdf_file" accept=".pdf" required>
+                                    <div class="form-text">Select a PDF file to analyze</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h5 class="mb-0">Select Parsing Strategies</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="parser_key_1" class="form-label">Parser 1</label>
+                                        <select class="form-select" id="parser_key_1" name="parser_key_1" required>
+                                            <option value="" selected disabled>Select Parser 1</option>
+                                            {% for key, name in parser_choices %}
+                                            <option value="{{ key }}">{{ name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="parser_key_2" class="form-label">Parser 2</label>
+                                        <select class="form-select" id="parser_key_2" name="parser_key_2" required>
+                                            <option value="" selected disabled>Select Parser 2</option>
+                                            {% for key, name in parser_choices %}
+                                            <option value="{{ key }}">{{ name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-text mb-3">
+                                    Choose two different parsing strategies to compare their text extraction results
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h5 class="mb-0">AI Extraction Options</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="run_ai_extraction" name="run_ai_extraction">
+                                    <label class="form-check-label" for="run_ai_extraction">
+                                        Run AI extraction on both parser outputs
+                                    </label>
+                                </div>
+                                <div class="form-text">
+                                    When enabled, the system will run structured data extraction using AI on both parser outputs.
+                                    This allows you to compare how different parsing strategies affect AI extraction results.
+                                    <br>
+                                    <strong>Note:</strong> This requires an OpenAI API key and will count toward your API usage.
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Submit Button -->
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg" id="compareBtn">
+                                <i class="fas fa-upload me-1"></i> Upload and Compare
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <!-- Loading Indicator (hidden by default) -->
+                    <div id="loadingIndicator" class="text-center mb-4 d-none">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">Processing PDF and comparing parsers, please wait...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Show loading indicator when form is submitted
+    const form = document.querySelector('form');
+    const loadingIndicator = document.getElementById('loadingIndicator');
+    const submitButton = document.getElementById('compareBtn');
+    
+    if (form) {
+        form.addEventListener('submit', function() {
+            // Disable the submit button
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
+            
+            // Show loading indicator
+            loadingIndicator.classList.remove('d-none');
+        });
+    }
+    
+    // Validate that two different parsers are selected
+    const parser1Select = document.getElementById('parser_key_1');
+    const parser2Select = document.getElementById('parser_key_2');
+    
+    function validateParsers() {
+        if (parser1Select.value && parser2Select.value && parser1Select.value === parser2Select.value) {
+            parser2Select.setCustomValidity('Please select a different parser for Parser 2');
+        } else {
+            parser2Select.setCustomValidity('');
+        }
+    }
+    
+    parser1Select.addEventListener('change', validateParsers);
+    parser2Select.addEventListener('change', validateParsers);
+});
+</script>
+{% endblock %}
