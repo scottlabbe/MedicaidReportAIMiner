@@ -1,0 +1,426 @@
+{% extends "layout.html" %}
+
+{% block head_content %}
+<title>Edit Report - Medicaid Audit Report Analyzer</title>
+<style>
+    .form-section {
+        margin-bottom: 2rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .list-item {
+        margin-bottom: 1rem;
+        padding: 0.75rem;
+        border: 1px solid #dee2e6;
+        border-radius: 5px;
+        position: relative;
+    }
+    
+    .remove-item {
+        position: absolute;
+        top: 0.25rem;
+        right: 0.25rem;
+    }
+    
+    .add-item-container {
+        margin-top: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>
+                <i class="fas fa-edit me-2"></i>
+                Edit Report
+            </h1>
+            <div>
+                <a href="{{ url_for('report_detail', report_id=report.id) }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i> Back to Report
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card mb-4">
+            <div class="card-header bg-primary">
+                <h5 class="mb-0">Edit Report Data</h5>
+            </div>
+            <div class="card-body">
+                <form id="editForm" method="POST">
+                    <input type="hidden" id="reportDataJson" name="report_data">
+                    
+                    <!-- Basic Info -->
+                    <div class="form-section">
+                        <h5 class="mb-3">Basic Information</h5>
+                        
+                        <div class="mb-3">
+                            <label for="report_title" class="form-label">Report Title</label>
+                            <input type="text" class="form-control" id="report_title" value="{{ report.report_title }}" required>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="audit_organization" class="form-label">Audit Organization</label>
+                                <input type="text" class="form-control" id="audit_organization" value="{{ report.audit_organization }}" required>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="state" class="form-label">State (2-letter code)</label>
+                                <select class="form-select" id="state">
+                                    <option value="">-- Select State --</option>
+                                    <option value="AL" {% if report.state == "AL" %}selected{% endif %}>Alabama (AL)</option>
+                                    <option value="AK" {% if report.state == "AK" %}selected{% endif %}>Alaska (AK)</option>
+                                    <option value="AZ" {% if report.state == "AZ" %}selected{% endif %}>Arizona (AZ)</option>
+                                    <option value="AR" {% if report.state == "AR" %}selected{% endif %}>Arkansas (AR)</option>
+                                    <option value="CA" {% if report.state == "CA" %}selected{% endif %}>California (CA)</option>
+                                    <option value="CO" {% if report.state == "CO" %}selected{% endif %}>Colorado (CO)</option>
+                                    <option value="CT" {% if report.state == "CT" %}selected{% endif %}>Connecticut (CT)</option>
+                                    <option value="DE" {% if report.state == "DE" %}selected{% endif %}>Delaware (DE)</option>
+                                    <option value="FL" {% if report.state == "FL" %}selected{% endif %}>Florida (FL)</option>
+                                    <option value="GA" {% if report.state == "GA" %}selected{% endif %}>Georgia (GA)</option>
+                                    <option value="HI" {% if report.state == "HI" %}selected{% endif %}>Hawaii (HI)</option>
+                                    <option value="ID" {% if report.state == "ID" %}selected{% endif %}>Idaho (ID)</option>
+                                    <option value="IL" {% if report.state == "IL" %}selected{% endif %}>Illinois (IL)</option>
+                                    <option value="IN" {% if report.state == "IN" %}selected{% endif %}>Indiana (IN)</option>
+                                    <option value="IA" {% if report.state == "IA" %}selected{% endif %}>Iowa (IA)</option>
+                                    <option value="KS" {% if report.state == "KS" %}selected{% endif %}>Kansas (KS)</option>
+                                    <option value="KY" {% if report.state == "KY" %}selected{% endif %}>Kentucky (KY)</option>
+                                    <option value="LA" {% if report.state == "LA" %}selected{% endif %}>Louisiana (LA)</option>
+                                    <option value="ME" {% if report.state == "ME" %}selected{% endif %}>Maine (ME)</option>
+                                    <option value="MD" {% if report.state == "MD" %}selected{% endif %}>Maryland (MD)</option>
+                                    <option value="MA" {% if report.state == "MA" %}selected{% endif %}>Massachusetts (MA)</option>
+                                    <option value="MI" {% if report.state == "MI" %}selected{% endif %}>Michigan (MI)</option>
+                                    <option value="MN" {% if report.state == "MN" %}selected{% endif %}>Minnesota (MN)</option>
+                                    <option value="MS" {% if report.state == "MS" %}selected{% endif %}>Mississippi (MS)</option>
+                                    <option value="MO" {% if report.state == "MO" %}selected{% endif %}>Missouri (MO)</option>
+                                    <option value="MT" {% if report.state == "MT" %}selected{% endif %}>Montana (MT)</option>
+                                    <option value="NE" {% if report.state == "NE" %}selected{% endif %}>Nebraska (NE)</option>
+                                    <option value="NV" {% if report.state == "NV" %}selected{% endif %}>Nevada (NV)</option>
+                                    <option value="NH" {% if report.state == "NH" %}selected{% endif %}>New Hampshire (NH)</option>
+                                    <option value="NJ" {% if report.state == "NJ" %}selected{% endif %}>New Jersey (NJ)</option>
+                                    <option value="NM" {% if report.state == "NM" %}selected{% endif %}>New Mexico (NM)</option>
+                                    <option value="NY" {% if report.state == "NY" %}selected{% endif %}>New York (NY)</option>
+                                    <option value="NC" {% if report.state == "NC" %}selected{% endif %}>North Carolina (NC)</option>
+                                    <option value="ND" {% if report.state == "ND" %}selected{% endif %}>North Dakota (ND)</option>
+                                    <option value="OH" {% if report.state == "OH" %}selected{% endif %}>Ohio (OH)</option>
+                                    <option value="OK" {% if report.state == "OK" %}selected{% endif %}>Oklahoma (OK)</option>
+                                    <option value="OR" {% if report.state == "OR" %}selected{% endif %}>Oregon (OR)</option>
+                                    <option value="PA" {% if report.state == "PA" %}selected{% endif %}>Pennsylvania (PA)</option>
+                                    <option value="RI" {% if report.state == "RI" %}selected{% endif %}>Rhode Island (RI)</option>
+                                    <option value="SC" {% if report.state == "SC" %}selected{% endif %}>South Carolina (SC)</option>
+                                    <option value="SD" {% if report.state == "SD" %}selected{% endif %}>South Dakota (SD)</option>
+                                    <option value="TN" {% if report.state == "TN" %}selected{% endif %}>Tennessee (TN)</option>
+                                    <option value="TX" {% if report.state == "TX" %}selected{% endif %}>Texas (TX)</option>
+                                    <option value="UT" {% if report.state == "UT" %}selected{% endif %}>Utah (UT)</option>
+                                    <option value="VT" {% if report.state == "VT" %}selected{% endif %}>Vermont (VT)</option>
+                                    <option value="VA" {% if report.state == "VA" %}selected{% endif %}>Virginia (VA)</option>
+                                    <option value="WA" {% if report.state == "WA" %}selected{% endif %}>Washington (WA)</option>
+                                    <option value="WV" {% if report.state == "WV" %}selected{% endif %}>West Virginia (WV)</option>
+                                    <option value="WI" {% if report.state == "WI" %}selected{% endif %}>Wisconsin (WI)</option>
+                                    <option value="WY" {% if report.state == "WY" %}selected{% endif %}>Wyoming (WY)</option>
+                                    <option value="DC" {% if report.state == "DC" %}selected{% endif %}>District of Columbia (DC)</option>
+                                    <option value="AS" {% if report.state == "AS" %}selected{% endif %}>American Samoa (AS)</option>
+                                    <option value="GU" {% if report.state == "GU" %}selected{% endif %}>Guam (GU)</option>
+                                    <option value="MP" {% if report.state == "MP" %}selected{% endif %}>Northern Mariana Islands (MP)</option>
+                                    <option value="PR" {% if report.state == "PR" %}selected{% endif %}>Puerto Rico (PR)</option>
+                                    <option value="VI" {% if report.state == "VI" %}selected{% endif %}>U.S. Virgin Islands (VI)</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="publication_year" class="form-label">Publication Year</label>
+                                <input type="number" class="form-control" id="publication_year" value="{{ report.publication_year }}" min="1900" max="2100" required>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="publication_month" class="form-label">Publication Month</label>
+                                <input type="number" class="form-control" id="publication_month" value="{{ report.publication_month }}" min="1" max="12" required>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="publication_day" class="form-label">Publication Day</label>
+                                <input type="number" class="form-control" id="publication_day" value="{{ report.publication_day if report.publication_day else '' }}" min="1" max="31">
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="audit_scope" class="form-label">Scope Description</label>
+                            <textarea class="form-control" id="audit_scope" rows="2">{{ report.audit_scope }}</textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="original_report_source_url" class="form-label">Original Report URL</label>
+                            <input type="url" class="form-control" id="original_report_source_url" value="{{ report.original_report_source_url }}">
+                        </div>
+                    </div>
+                    
+                    <!-- Summary & Analysis Section -->
+                    <div class="form-section">
+                        <h5 class="mb-3">Summary & Analysis</h5>
+                        
+                        <div class="mb-3">
+                            <label for="overall_conclusion" class="form-label">Overall Conclusion</label>
+                            <textarea class="form-control" id="overall_conclusion" rows="4">{{ report.overall_conclusion }}</textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="llm_insight" class="form-label">AI-Generated Insight</label>
+                            <textarea class="form-control" id="llm_insight" rows="4">{{ report.llm_insight }}</textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="potential_objective_summary" class="form-label">Objective Summary</label>
+                            <textarea class="form-control" id="potential_objective_summary" rows="3">{{ report.potential_objective_summary }}</textarea>
+                        </div>
+                    </div>
+                    
+                    <!-- Objectives Section -->
+                    <div class="form-section">
+                        <h5 class="mb-3">Audit Objectives</h5>
+                        
+                        <div id="objectivesContainer">
+                            {% for objective in report.objectives %}
+                            <div class="list-item objective-item">
+                                <button type="button" class="btn btn-sm btn-outline-danger remove-item">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                                <div class="mb-2">
+                                    <label class="form-label">Objective Text</label>
+                                    <textarea class="form-control objective-text" rows="2">{{ objective.objective_text }}</textarea>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        
+                        <div class="add-item-container">
+                            <button type="button" id="addObjectiveBtn" class="btn btn-outline-success">
+                                <i class="fas fa-plus me-1"></i> Add Objective
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Findings Section -->
+                    <div class="form-section">
+                        <h5 class="mb-3">Audit Findings</h5>
+                        
+                        <div id="findingsContainer">
+                            {% for finding in report.findings %}
+                            <div class="list-item finding-item">
+                                <button type="button" class="btn btn-sm btn-outline-danger remove-item">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                                <div class="mb-2">
+                                    <label class="form-label">Finding Text</label>
+                                    <textarea class="form-control finding-text" rows="3">{{ finding.finding_text }}</textarea>
+                                </div>
+                                <div>
+                                    <label class="form-label">Financial Impact ($)</label>
+                                    <input type="number" class="form-control financial-impact" step="0.01" value="{{ finding.financial_impact if finding.financial_impact else '' }}">
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        
+                        <div class="add-item-container">
+                            <button type="button" id="addFindingBtn" class="btn btn-outline-success">
+                                <i class="fas fa-plus me-1"></i> Add Finding
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Recommendations Section -->
+                    <div class="form-section">
+                        <h5 class="mb-3">Audit Recommendations</h5>
+                        
+                        <div id="recommendationsContainer">
+                            {% for recommendation in report.recommendations %}
+                            <div class="list-item recommendation-item">
+                                <button type="button" class="btn btn-sm btn-outline-danger remove-item">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                                <div class="mb-2">
+                                    <label class="form-label">Recommendation Text</label>
+                                    <textarea class="form-control recommendation-text" rows="3">{{ recommendation.recommendation_text }}</textarea>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        
+                        <div class="add-item-container">
+                            <button type="button" id="addRecommendationBtn" class="btn btn-outline-success">
+                                <i class="fas fa-plus me-1"></i> Add Recommendation
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Keywords Section -->
+                    <div class="form-section">
+                        <h5 class="mb-3">Keywords</h5>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Keywords (comma-separated)</label>
+                            <input type="text" class="form-control" id="keywordsInput" value="{{ report.keywords|map(attribute='keyword_text')|join(', ') }}">
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-1"></i> Save Changes
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Remove item handler
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('remove-item') || e.target.closest('.remove-item')) {
+            const item = e.target.closest('.list-item');
+            if (item) {
+                item.remove();
+            }
+        }
+    });
+    
+    // Add objective
+    document.getElementById('addObjectiveBtn').addEventListener('click', function() {
+        const container = document.getElementById('objectivesContainer');
+        const newItem = document.createElement('div');
+        newItem.classList.add('list-item', 'objective-item');
+        newItem.innerHTML = `
+            <button type="button" class="btn btn-sm btn-outline-danger remove-item">
+                <i class="fas fa-times"></i>
+            </button>
+            <div class="mb-2">
+                <label class="form-label">Objective Text</label>
+                <textarea class="form-control objective-text" rows="2"></textarea>
+            </div>
+        `;
+        container.appendChild(newItem);
+    });
+    
+    // Add finding
+    document.getElementById('addFindingBtn').addEventListener('click', function() {
+        const container = document.getElementById('findingsContainer');
+        const newItem = document.createElement('div');
+        newItem.classList.add('list-item', 'finding-item');
+        newItem.innerHTML = `
+            <button type="button" class="btn btn-sm btn-outline-danger remove-item">
+                <i class="fas fa-times"></i>
+            </button>
+            <div class="mb-2">
+                <label class="form-label">Finding Text</label>
+                <textarea class="form-control finding-text" rows="3"></textarea>
+            </div>
+            <div>
+                <label class="form-label">Financial Impact ($)</label>
+                <input type="number" class="form-control financial-impact" step="0.01">
+            </div>
+        `;
+        container.appendChild(newItem);
+    });
+    
+    // Add recommendation
+    document.getElementById('addRecommendationBtn').addEventListener('click', function() {
+        const container = document.getElementById('recommendationsContainer');
+        const newItem = document.createElement('div');
+        newItem.classList.add('list-item', 'recommendation-item');
+        newItem.innerHTML = `
+            <button type="button" class="btn btn-sm btn-outline-danger remove-item">
+                <i class="fas fa-times"></i>
+            </button>
+            <div class="mb-2">
+                <label class="form-label">Recommendation Text</label>
+                <textarea class="form-control recommendation-text" rows="3"></textarea>
+            </div>
+        `;
+        container.appendChild(newItem);
+    });
+    
+    // Form submission
+    document.getElementById('editForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // Collect objectives
+        const objectives = [];
+        document.querySelectorAll('.objective-item').forEach(item => {
+            const text = item.querySelector('.objective-text').value.trim();
+            if (text) {
+                objectives.push({
+                    objective_text: text
+                });
+            }
+        });
+        
+        // Collect findings
+        const findings = [];
+        document.querySelectorAll('.finding-item').forEach(item => {
+            const text = item.querySelector('.finding-text').value.trim();
+            if (text) {
+                const financial_impact = item.querySelector('.financial-impact').value;
+                findings.push({
+                    finding_text: text,
+                    financial_impact: financial_impact ? parseFloat(financial_impact) : null
+                });
+            }
+        });
+        
+        // Collect recommendations
+        const recommendations = [];
+        document.querySelectorAll('.recommendation-item').forEach(item => {
+            const text = item.querySelector('.recommendation-text').value.trim();
+            if (text) {
+                recommendations.push({
+                    recommendation_text: text
+                });
+            }
+        });
+        
+        // Process keywords
+        const keywordsText = document.getElementById('keywordsInput').value;
+        const keywords = keywordsText
+            .split(',')
+            .map(k => k.trim())
+            .filter(k => k.length > 0);
+        
+        // Create data object
+        const reportData = {
+            report: {
+                report_title: document.getElementById('report_title').value,
+                audit_organization: document.getElementById('audit_organization').value,
+                publication_year: parseInt(document.getElementById('publication_year').value),
+                publication_month: parseInt(document.getElementById('publication_month').value),
+                publication_day: document.getElementById('publication_day').value ? parseInt(document.getElementById('publication_day').value) : null,
+                overall_conclusion: document.getElementById('overall_conclusion').value,
+                llm_insight: document.getElementById('llm_insight').value,
+                potential_objective_summary: document.getElementById('potential_objective_summary').value,
+                original_report_source_url: document.getElementById('original_report_source_url').value,
+                state: document.getElementById('state').value,
+                audit_scope: document.getElementById('audit_scope').value
+            },
+            objectives: objectives,
+            findings: findings,
+            recommendations: recommendations,
+            keywords: keywords
+        };
+        
+        // Set the hidden input value
+        document.getElementById('reportDataJson').value = JSON.stringify(reportData);
+        
+        // Submit the form
+        this.submit();
+    });
+});
+</script>
+{% endblock %}
