@@ -779,6 +779,12 @@ def register_routes(app):
                 
                 # Create the parameter model
                 param_model_cls = ChunkingStrategy[strategy_1].param_model
+                
+                # Clean up parameter names - some UI fields might not match the model exactly
+                if strategy_1 == 'SEMANTIC_CHUNKING_LLAMAINDEX' and 'chunk_size' in strategy_1_params:
+                    # Handle case where old parameter name was used
+                    strategy_1_params['max_chunk_size'] = strategy_1_params.pop('chunk_size')
+                
                 params_1 = param_model_cls(**strategy_1_params)
                 
                 # Apply the chunking strategy
@@ -834,6 +840,12 @@ def register_routes(app):
                 
                 # Create the parameter model
                 param_model_cls = ChunkingStrategy[strategy_2].param_model
+                
+                # Clean up parameter names - some UI fields might not match the model exactly
+                if strategy_2 == 'SEMANTIC_CHUNKING_LLAMAINDEX' and 'chunk_size' in strategy_2_params:
+                    # Handle case where old parameter name was used
+                    strategy_2_params['max_chunk_size'] = strategy_2_params.pop('chunk_size')
+                
                 params_2 = param_model_cls(**strategy_2_params)
                 
                 # Apply the chunking strategy

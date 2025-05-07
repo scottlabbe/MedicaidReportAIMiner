@@ -112,9 +112,9 @@ const strategyParams = {
         }
     ],
     'SEMANTIC_CHUNKING_LLAMAINDEX': [
-        { name: 'chunk_size', label: 'Chunk Size (tokens)', type: 'number', default: 512, min: 50, max: 2048 },
-        { name: 'chunk_overlap', label: 'Chunk Overlap (tokens)', type: 'number', default: 50, min: 0, max: 200 },
-        { name: 'breakpoint_percentile_threshold', label: 'Breakpoint Percentile Threshold', type: 'number', default: 95, min: 50, max: 100 }
+        { name: 'max_chunk_size', label: 'Maximum Chunk Size (tokens)', type: 'number', default: 512, min: 50, max: 2048 },
+        { name: 'breakpoint_percentile_threshold', label: 'Breakpoint Percentile Threshold', type: 'number', default: 95, min: 50, max: 100, 
+          description: 'Higher values (e.g., 95) create fewer but more significant breakpoints' }
     ],
     'MARKDOWN_NODE_PARSER': [
         { name: 'chunk_size', label: 'Chunk Size (tokens)', type: 'number', default: 512, min: 50, max: 2048 }
@@ -127,6 +127,27 @@ function loadStrategyParams(strategyNum, strategyKey) {
     
     if (!strategyKey || !strategyParams[strategyKey]) {
         return;
+    }
+    
+    // Add strategy description based on the strategy type
+    if (strategyKey === 'SEMANTIC_CHUNKING_LLAMAINDEX') {
+        const descriptionDiv = document.createElement('div');
+        descriptionDiv.className = 'alert alert-info mb-3';
+        descriptionDiv.innerHTML = `
+            <h6 class="alert-heading">About Semantic Chunking</h6>
+            <p class="mb-0">This strategy analyzes content to find natural semantic breakpoints rather than 
+            rigidly splitting by token count. It uses embeddings to determine where topics change.</p>
+        `;
+        paramsContainer.appendChild(descriptionDiv);
+    } else if (strategyKey === 'MARKDOWN_NODE_PARSER') {
+        const descriptionDiv = document.createElement('div');
+        descriptionDiv.className = 'alert alert-info mb-3';
+        descriptionDiv.innerHTML = `
+            <h6 class="alert-heading">About Markdown Parser</h6>
+            <p class="mb-0">This strategy divides text based on Markdown headers (e.g., #, ##, ###) and 
+            attempts to identify header-like patterns in non-Markdown text.</p>
+        `;
+        paramsContainer.appendChild(descriptionDiv);
     }
     
     const params = strategyParams[strategyKey];
@@ -170,6 +191,14 @@ function loadStrategyParams(strategyNum, strategyKey) {
             });
             
             formGroup.appendChild(select);
+        }
+        
+        // Add description if available
+        if (param.description) {
+            const descriptionElement = document.createElement('div');
+            descriptionElement.className = 'form-text';
+            descriptionElement.textContent = param.description;
+            formGroup.appendChild(descriptionElement);
         }
         
         paramsContainer.appendChild(formGroup);

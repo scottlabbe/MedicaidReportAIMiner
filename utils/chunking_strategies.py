@@ -42,11 +42,10 @@ class SimpleSplitterParams(BaseModel):
 class SemanticSplitterParams(BaseModel):
     """Parameters for semantic text splitter."""
     strategy_type: Literal["SEMANTIC_CHUNKING_LLAMAINDEX"] = "SEMANTIC_CHUNKING_LLAMAINDEX"
-    chunk_size: int = Field(default=512, gt=0, description="Target chunk size in tokens")
-    chunk_overlap: int = Field(default=50, ge=0, description="Number of overlapping tokens between chunks")
+    max_chunk_size: int = Field(default=512, gt=0, description="Maximum chunk size in tokens - chunks may be smaller based on semantic breakpoints")
     breakpoint_percentile_threshold: int = Field(
         default=95, ge=0, le=100,
-        description="Percentile threshold for determining breakpoints"
+        description="Percentile threshold for determining breakpoints (higher = fewer but more significant breakpoints)"
     )
 
 class MarkdownSplitterParams(BaseModel):
@@ -199,7 +198,7 @@ def chunk_with_semantic(text: str, params: SemanticSplitterParams) -> List[Chunk
         # Create semantic splitter
         # Note: This will use OpenAI embeddings by default
         splitter = SemanticSplitterNodeParser(
-            buffer_size=params.chunk_size,
+            buffer_size=params.max_chunk_size,
             breakpoint_percentile_threshold=params.breakpoint_percentile_threshold / 100.0,
             # Use text-embedding-ada-002 or similar model
         )
