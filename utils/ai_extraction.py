@@ -30,8 +30,8 @@ class ReportData(BaseModel):
     publication_month: int = Field(..., description="The month the report was published (1-12)")
     publication_day: Optional[int] = Field(None, description="The day the report was published (1-31), if available")
     objectives: List[Objective] = Field([], description="List of audit objectives")
-    findings: List[Finding] = Field([], description="List of audit findings")
-    recommendations: List[Recommendation] = Field([], description="List of audit recommendations")
+    findings: List[Finding] = Field([], description="Comprehensive list of audit findings")
+    recommendations: List[Recommendation] = Field([], description="Comprehensive list of audit recommendations")
     overall_conclusion: Optional[str] = Field(None, description="The overall conclusion of the audit report")
     llm_insight: str = Field(..., description="An AI-generated summary/insight about the report")
     potential_objective_summary: Optional[str] = Field(None, description="An AI-generated summary of the objectives")
@@ -107,7 +107,7 @@ def extract_data_with_openai(pdf_text, api_key):
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
             ],
-            temperature=0.1  # Low temperature for more deterministic output
+            temperature=0.2  # Low temperature for more deterministic output
         )
         
         # Print raw AI response to console
