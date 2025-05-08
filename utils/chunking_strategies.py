@@ -1,21 +1,55 @@
 import logging
 import re
+import os
 from enum import Enum
 from typing import Dict, List, Any, Optional, Union, Literal, Callable
 import tiktoken
 from pydantic import BaseModel, Field
 
-# Try importing LlamaIndex components
+# Define placeholders for types that might not be imported
+# This helps with static analysis and prevents NameErrors if imports fail
+Document, TokenTextSplitter, SentenceSplitter, MarkdownNodeParser, SemanticSplitterNodeParser, OpenAIEmbedding = (None,) * 6
+BaseEmbedding = None
+
+# Track availability of components
+LLAMA_INDEX_AVAILABLE = False
+OPENAI_EMBEDDING_AVAILABLE = False
+
+# Try importing LlamaIndex core components
 try:
-    from llama_index.core.node_parser import TokenTextSplitter, SentenceSplitter
-    from llama_index.core.node_parser import MarkdownNodeParser  # Changed from MarkdownHeaderTextSplitter
-    from llama_index.core.node_parser import SemanticSplitterNodeParser
-    from llama_index.core.schema import Document
+    from llama_index.core.node_parser import (
+        TokenTextSplitter as CoreTokenTextSplitter,
+        SentenceSplitter as CoreSentenceSplitter,
+        MarkdownNodeParser as CoreMarkdownNodeParser,
+        SemanticSplitterNodeParser as CoreSemanticSplitterNodeParser
+    )
+    from llama_index.core.schema import Document as CoreDocument
+    
+    # Assign imported classes to the global names
+    Document = CoreDocument
+    TokenTextSplitter = CoreTokenTextSplitter
+    SentenceSplitter = CoreSentenceSplitter
+    MarkdownNodeParser = CoreMarkdownNodeParser
+    SemanticSplitterNodeParser = CoreSemanticSplitterNodeParser
+    
     LLAMA_INDEX_AVAILABLE = True
-    logging.info("LlamaIndex successfully imported")
+    logging.info("LlamaIndex core components successfully imported")
+    
+    # Try importing OpenAI embedding model for semantic chunking
+    try:
+        from llama_index.embeddings.openai import OpenAIEmbedding as ImportedOpenAIEmbedding
+        OpenAIEmbedding = ImportedOpenAIEmbedding
+        OPENAI_EMBEDDING_AVAILABLE = True
+        logging.info("OpenAIEmbedding successfully imported")
+    except ImportError:
+        logging.warning(
+            "OpenAIEmbedding could not be imported from llama_index.embeddings.openai. "
+            "Semantic chunking with OpenAI embeddings will not be available. "
+            "Ensure 'llama-index-embeddings-openai' is installed."
+        )
 except ImportError as e:
     logging.warning(f"LlamaIndex not available: {str(e)}. Some chunking strategies will not be available.")
-    LLAMA_INDEX_AVAILABLE = False
+    # All component placeholders remain as None
 
 # Define the Chunk model
 class Chunk(BaseModel):
@@ -80,10 +114,19 @@ class ChunkingStrategy(Enum):
         """Return list of (enum_name, display_name) tuples for UI dropdowns."""
         choices = [(member.name, member._display_name) for member in cls]
         
-        # If LlamaIndex is not available, remove strategies that require it
+        # Filter based on availability
         if not LLAMA_INDEX_AVAILABLE:
+            # If LlamaIndex is not available, remove all LlamaIndex-based strategies
             choices = [choice for choice in choices if not choice[0].endswith("LLAMAINDEX")]
-            
+        elif not OPENAI_EMBEDDING_AVAILABLE:
+            # If LlamaIndex is available but OpenAI embeddings are not, 
+            # remove just the semantic chunker which requires embeddings
+            choices = [choice for choice in choices if choice[0] != "SEMANTIC_CHUNKING_LLAMAINDEX"]
+        
+        # Ensure we always have at least one choice
+        if not choices:
+            logging.warning("No chunking strategies are available. Check your dependencies.")
+        
         return choices
             
 def count_tokens(text: str, model: str = "gpt-4o") -> int:
@@ -189,18 +232,48 @@ def chunk_with_semantic(text: str, params: SemanticSplitterParams) -> List[Chunk
     if not LLAMA_INDEX_AVAILABLE:
         raise ValueError("LlamaIndex is not available. Cannot use this chunking strategy.")
     
+    # Check if OpenAIEmbedding specifically is available (imported correctly)
+    if not OPENAI_EMBEDDING_AVAILABLE or OpenAIEmbedding is None:
+        raise ImportError(
+            "OpenAIEmbedding is required for semantic chunking but is not available. "
+            "Please ensure 'llama-index-embeddings-openai' is installed."
+        )
+    
     chunks = []
     
     try:
         # Create a Document from the text
         document = Document(text=text)
         
-        # Create semantic splitter
-        # Note: This will use OpenAI embeddings by default
+        # 1. Initialize OpenAI Embedding Model
+        try:
+            # Check for API key
+            api_key = os.environ.get("OPENAI_API_KEY")
+            if not api_key:
+                raise ValueError(
+                    "OPENAI_API_KEY environment variable is not set. "
+                    "This is required for semantic chunking with OpenAI embeddings."
+                )
+            
+            embed_model = OpenAIEmbedding()
+            logging.info("Successfully initialized OpenAI embedding model")
+        except Exception as e:
+            logging.error(f"Failed to initialize OpenAI embedding model: {e}")
+            raise ValueError(
+                f"Failed to initialize OpenAI embedding model: {e}. "
+                "Please check your API key and model configuration."
+            )
+        
+        # 2. Create a sentence splitter for pre-segmenting text
+        initial_sentence_splitter = SentenceSplitter(
+            chunk_size=params.max_chunk_size
+        )
+        
+        # 3. Create semantic splitter with proper configuration
         splitter = SemanticSplitterNodeParser(
-            buffer_size=params.max_chunk_size,
-            breakpoint_percentile_threshold=params.breakpoint_percentile_threshold / 100.0,
-            # Use text-embedding-ada-002 or similar model
+            embed_model=embed_model,
+            breakpoint_percentile_threshold=params.breakpoint_percentile_threshold,  # Pass as integer (e.g., 95)
+            sentence_splitter=initial_sentence_splitter.split_text
         )
         
         # Split the document into nodes
@@ -217,7 +290,8 @@ def chunk_with_semantic(text: str, params: SemanticSplitterParams) -> List[Chunk
             metadata.update({
                 "chunk_index": i,
                 "splitter": "semantic",
-                "breakpoint_percentile": params.breakpoint_percentile_threshold
+                "breakpoint_percentile": params.breakpoint_percentile_threshold,
+                "max_chunk_size": params.max_chunk_size
             })
             
             # Count tokens and characters
