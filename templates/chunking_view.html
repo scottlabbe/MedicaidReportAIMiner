@@ -75,6 +75,12 @@
                     <div class="stats-summary mb-3">
                         <div class="row g-2">
                             <div class="col-md-6">
+                                <div class="p-2 border rounded bg-primary-subtle">
+                                    <div class="small text-muted">Total Chunks</div>
+                                    <div class="fw-bold">{{ comparison_data.stats_1.total_chunks }}</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
                                 <div class="p-2 border rounded">
                                     <div class="small text-muted">Avg. Chunk Size (tokens)</div>
                                     <div class="fw-bold">{{ comparison_data.stats_1.avg_chunk_length_tokens }}</div>
@@ -130,6 +136,12 @@
                 <div class="card-body">
                     <div class="stats-summary mb-3">
                         <div class="row g-2">
+                            <div class="col-md-6">
+                                <div class="p-2 border rounded bg-secondary-subtle">
+                                    <div class="small text-muted">Total Chunks</div>
+                                    <div class="fw-bold">{{ comparison_data.stats_2.total_chunks }}</div>
+                                </div>
+                            </div>
                             <div class="col-md-6">
                                 <div class="p-2 border rounded">
                                     <div class="small text-muted">Avg. Chunk Size (tokens)</div>
