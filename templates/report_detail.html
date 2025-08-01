@@ -96,9 +96,9 @@
             </div>
             <div class="card-body">
                 {% if report.objectives %}
-                <div class="list-group">
+                <div>
                     {% for objective in report.objectives %}
-                    <div class="list-group-item">
+                    <div class="mb-3">
                         <div class="d-flex w-100 justify-content-between">
                             <h6 class="mb-1">Objective {{ loop.index }}</h6>
                         </div>
@@ -121,9 +121,9 @@
             </div>
             <div class="card-body">
                 {% if report.findings %}
-                <div class="list-group">
+                <div>
                     {% for finding in report.findings %}
-                    <div class="list-group-item">
+                    <div class="mb-3">
                         <div class="d-flex w-100 justify-content-between">
                             <h6 class="mb-1">Finding {{ loop.index }}</h6>
                             {% if finding.financial_impact %}
@@ -149,9 +149,9 @@
             </div>
             <div class="card-body">
                 {% if report.recommendations %}
-                <div class="list-group">
+                <div>
                     {% for recommendation in report.recommendations %}
-                    <div class="list-group-item">
+                    <div class="mb-3">
                         <div class="d-flex w-100 justify-content-between">
                             <h6 class="mb-1">Recommendation {{ loop.index }}</h6>
                         </div>
