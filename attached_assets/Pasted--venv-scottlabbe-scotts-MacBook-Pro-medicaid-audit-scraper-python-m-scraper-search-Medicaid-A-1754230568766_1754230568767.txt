@@ -1,0 +1,67 @@
+.venv) scottlabbe@scotts-MacBook-Pro medicaid_audit_scraper % python -m scraper.search
+🔍 Medicaid Audit PDF Search - Government Auditor Sites
+
+Searching 14 audit sites
+Search Query: filetype:pdf (site:oig.hhs.gov OR site:gao.gov OR site:cms.gov OR site:medicaid.gov OR site:auditor.illinois.gov OR site:auditor.ca.gov OR
+site:sao.texas.gov OR site:auditor.mo.gov OR site:audits.ga.gov OR site:sao.wa.gov OR site:auditor.nebraska.gov OR site:osa.state.ms.us OR 
+site:auditor.state.oh.us OR site:oag.state.ny.us) Medicaid audit
+Found 7 likely Medicaid audit PDFs
+Document 1 metadata:
+  Author: CPI AVG DSPI
+  Created: D:20250701122345-04'00'
+Document 2 metadata:
+  Author: CMS
+  Created: D:20250721134054-04'00'
+Document 3 metadata:
+  Author: CMS
+  Created: D:20250721140848-04'00'
+Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+
+Classifying 7 results with Gemini AI...
+  Analyzing [1/7]: Ohio Medicaid Managed Care Medical Loss Ratio Audi...
+  Analyzing [2/7]: Medicaid Drug Rebate Notice for Manufacturers...
+  Analyzing [3/7]: Medicaid Drug Rebate Program Notice for States...
+  Analyzing [4/7]: Medicare & Medicaid...
+  Analyzing [5/7]: GAO-25-106885, FEDERAL EMPLOYEES HEALTH BENEFITS ....
+  Analyzing [6/7]: National Provider Communication Standards | CMS...
+  Analyzing [7/7]: COVID-19 Update on Key Indicators, the Federal Res...
+                                                           Found 7 Likely Medicaid Audit PDFs                                                           
+┏━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ #   ┃ Title                                      ┃ Source           ┃ Author                            ┃ URL                                        ┃
+┡━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│ 1   │ Ohio Medicaid Managed Care Medical Loss    │ www.cms.gov      │ CPI AVG DSPI                      │ https://www.cms.gov/files/document/ohio-.… │
+│     │ Ratio Audit Au...                          │                  │                                   │                                            │
+│ 2   │ Medicaid Drug Rebate Notice for            │ www.medicaid.gov │ CMS                               │ https://www.medicaid.gov/prescription-dr.… │
+│     │ Manufacturers                              │                  │                                   │                                            │
+│ 3   │ Medicaid Drug Rebate Program Notice for    │ www.medicaid.gov │ CMS                               │ https://www.medicaid.gov/prescription-dr.… │
+│     │ States                                     │                  │                                   │                                            │
+│ 4   │ Medicare & Medicaid                        │ www.cms.gov      │ CMS                               │ https://www.cms.gov/regulations-and-guid.… │
+│ 5   │ GAO-25-106885, FEDERAL EMPLOYEES HEALTH    │ www.gao.gov      │ U.S. Government Accountability... │ https://www.gao.gov/assets/gao-25-106885.… │
+│     │ BENEFITS ...                               │                  │                                   │                                            │
+│ 6   │ National Provider Communication Standards  │ www.cms.gov      │ Centers for Medicare and Medic... │ https://www.cms.gov/files/document/natio.… │
+│     │ | CMS                                      │                  │                                   │                                            │
+│ 7   │ COVID-19 Update on Key Indicators, the     │ www.gao.gov      │ U.S. Government Accountability... │ https://www.gao.gov/assets/gao-25-107588.… │
+│     │ Federal Response, and...                   │                  │                                   │                                            │
+└─────┴────────────────────────────────────────────┴──────────────────┴───────────────────────────────────┴────────────────────────────────────────────┘
+
+AI Classification Summary:
+┏━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━━━┓
+┃ #   ┃ Title                                                           ┃ Is Audit? ┃ Confidence ┃ Type         ┃
+┡━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━━━━┩
+│ 1   │ Ohio Medicaid Managed Care Medical Loss Ratio Audit Audit Pe... │     ✓     │    95%     │ audit_report │
+│ 2   │ Medicaid Drug Rebate Notice for Manufacturers...                │     ✗     │    70%     │ policy       │
+│ 3   │ Medicaid Drug Rebate Program Notice for States...               │     ✗     │    60%     │ policy       │
+│ 4   │ Medicare & Medicaid...                                          │     ✗     │    60%     │ policy       │
+│ 5   │ GAO-25-106885, FEDERAL EMPLOYEES HEALTH BENEFITS ......         │     ✓     │    90%     │ audit_report │
+│ 6   │ National Provider Communication Standards | CMS...              │     ✗     │    90%     │ policy       │
+│ 7   │ COVID-19 Update on Key Indicators, the Federal Response, and... │     ✗     │    60%     │ policy       │
+└─────┴─────────────────────────────────────────────────────────────────┴───────────┴────────────┴──────────────┘
+
+Metrics:
+• Total PDFs found: 7
+• Unique sources: 3
+• Search timeframe: Last 30 days
+• Likely Medicaid audits (AI): 2
+
+✓ Results saved to reports/search_results_20250801_205510.json
+✓ Likely audits saved to reports/likely_audits_20250801_205510.json
