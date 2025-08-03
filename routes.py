@@ -918,6 +918,25 @@ def register_routes(app):
         """Main audit search interface."""
         return render_template('audit_search.html')
 
+    @app.route('/api/classifier/status', methods=['GET'])
+    def api_classifier_status():
+        """Get current classifier status."""
+        try:
+            from scraper.classifier import MedicaidAuditClassifier
+            classifier = MedicaidAuditClassifier()
+            status = classifier.get_status()
+            
+            return jsonify({
+                'success': True,
+                'status': status
+            })
+            
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+
     @app.route('/api/audit-search', methods=['POST'])
     def execute_audit_search():
         """Execute search and return results."""
@@ -927,6 +946,9 @@ def register_routes(app):
             service = AuditSearchService()
             results = service.search_and_classify(days_back)
             
+            # Count classification errors
+            classification_errors = len([r for r in results if not r.get('ai_classification', {}).get('success', True)])
+            
             return jsonify({
                 'success': True,
                 'results': results,
@@ -934,7 +956,8 @@ def register_routes(app):
                     'total': len(results),
                     'audits': sum(1 for r in results 
                                  if r.get('ai_classification', {}).get('is_medicaid_audit')),
-                    'duplicates': sum(1 for r in results if r.get('is_duplicate'))
+                    'duplicates': sum(1 for r in results if r.get('is_duplicate')),
+                    'errors': classification_errors
                 }
             })
         except Exception as e:

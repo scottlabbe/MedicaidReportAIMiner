@@ -110,6 +110,12 @@
                                         Searches government audit sites for new Medicaid audit reports using AI classification.
                                     </small>
                                 </div>
+                                <div id="classifier-status" class="mt-2">
+                                    <small class="text-muted">
+                                        <i class="fas fa-robot"></i>
+                                        AI Classifier: <span id="classifier-info">Loading...</span>
+                                    </small>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -152,6 +158,7 @@
                             <div class="mb-3">
                                 <span id="selection-count" class="badge bg-info">0 selected</span>
                                 <span id="results-stats" class="text-muted ms-3"></span>
+                                <span id="error-summary" class="text-warning ms-3" style="display:none;"></span>
                             </div>
                             
                             <div class="table-responsive">
@@ -266,9 +273,17 @@
                     </td>
                     <td><span class="badge bg-secondary">${result.source}</span></td>
                     <td>
-                        <span class="badge ${isAudit ? 'bg-success' : 'bg-warning text-dark'}">
-                            ${isAudit ? '✓ Audit' : '✗ Not Audit'} (${confidence}%)
-                        </span>
+                        ${result.ai_classification && result.ai_classification.success ? `
+                            <span class="badge ${isAudit ? 'bg-success' : 'bg-warning text-dark'}">
+                                ${isAudit ? '✓ Audit' : '✗ Not Audit'} (${confidence}%)
+                            </span>
+                            ${result.ai_classification.provider ? `<br><small class="text-muted">${result.ai_classification.provider}</small>` : ''}
+                        ` : `
+                            <span class="badge bg-danger">
+                                ⚠ Error
+                            </span>
+                            <br><small class="text-danger">${result.ai_classification?.error || 'Classification failed'}</small>
+                        `}
                     </td>
                     <td>
                         <select onchange="setOverride('${result.url}', this.value)" 
@@ -324,6 +339,17 @@
                 Likely Audits: ${stats.audits} | 
                 Duplicates: ${stats.duplicates}
             `;
+            
+            // Show error summary if there are errors
+            if (stats.errors && stats.errors > 0) {
+                document.getElementById('error-summary').style.display = 'inline';
+                document.getElementById('error-summary').innerHTML = `
+                    <i class="fas fa-exclamation-triangle"></i>
+                    ${stats.errors} classification error${stats.errors > 1 ? 's' : ''}
+                `;
+            } else {
+                document.getElementById('error-summary').style.display = 'none';
+            }
         }
         
         function setOverride(url, value) {
@@ -417,7 +443,42 @@
         // Poll queue status every 10 seconds
         setInterval(updateQueueStatus, 10000);
         
-        // Initial queue status check
+        // Function to update classifier status
+        function updateClassifierStatus() {
+            fetch('/api/classifier/status')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success && data.status) {
+                        const status = data.status;
+                        const statusElement = document.getElementById('classifier-info');
+                        
+                        if (status.available) {
+                            statusElement.innerHTML = `
+                                <span class="text-success">${status.provider_name}</span> 
+                                (${status.model}) Ready
+                            `;
+                            statusElement.className = 'text-success';
+                        } else {
+                            statusElement.innerHTML = `
+                                <span class="text-danger">${status.provider || 'Unknown'}</span> 
+                                Not Available
+                            `;
+                            statusElement.className = 'text-danger';
+                        }
+                    } else {
+                        document.getElementById('classifier-info').innerHTML = 'Status Unknown';
+                        document.getElementById('classifier-info').className = 'text-warning';
+                    }
+                })
+                .catch(e => {
+                    console.error('Classifier status error:', e);
+                    document.getElementById('classifier-info').innerHTML = 'Error Loading Status';
+                    document.getElementById('classifier-info').className = 'text-danger';
+                });
+        }
+        
+        // Initial status checks
         updateQueueStatus();
+        updateClassifierStatus();
     </script>
 {% endblock %}

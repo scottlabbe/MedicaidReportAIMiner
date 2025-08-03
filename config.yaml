@@ -43,5 +43,11 @@ search:
       - auditor.hawaii.gov
 
 
-    output:
+  output:
     date_format: "%Y-%m-%d_%H%M%S"
+
+classifier:
+  provider: "openai"  # "openai" or "gemini"
+  model: "gpt-4o-mini"  # for openai, or "gemini-1.5-flash" for gemini
+  show_errors: true
+  retry_attempts: 2

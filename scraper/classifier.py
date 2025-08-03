@@ -1,147 +1,127 @@
 # scraper/classifier.py
 """
-AI-powered classification for identifying Medicaid audit documents using Google Gemini.
+AI-powered classification of search results to identify legitimate Medicaid audit documents.
 """
-import os
+import yaml
 from typing import Dict, List, Any
-import google.generativeai as genai
-from dotenv import load_dotenv
-import json
 from rich.console import Console
+from dotenv import load_dotenv
 
+from .classifiers import ClassifierInterface, ClassificationResult, OpenAIClassifier, GeminiClassifier
+
+# Load environment variables
 load_dotenv()
+
 console = Console()
 
 
 class MedicaidAuditClassifier:
-    """Classify documents as likely Medicaid audits using AI."""
+    """AI classifier to identify legitimate Medicaid audit documents from search results."""
     
-    def __init__(self):
-        """Initialize with Gemini client."""
-        api_key = os.getenv("GOOGLE_GEMINI_API_KEY")
-        if not api_key:
-            # Try alternate env var name
-            api_key = os.getenv("GEMINI_API_KEY")
-        if not api_key:
-            raise ValueError("Missing GOOGLE_GEMINI_API_KEY or GEMINI_API_KEY in .env file")
+    def __init__(self, config_path: str = "config.yaml"):
+        """Initialize the classifier with configuration."""
+        # Load configuration
+        with open(config_path, "r") as f:
+            self.config = yaml.safe_load(f)
         
-        # Configure the API
-        genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel('gemini-2.0-flash-exp')
+        classifier_config = self.config.get('classifier', {})
+        self.provider = classifier_config.get('provider', 'openai')
+        self.model = classifier_config.get('model', 'gpt-4o-mini')
+        self.show_errors = classifier_config.get('show_errors', True)
+        self.retry_attempts = classifier_config.get('retry_attempts', 2)
+        
+        # Initialize the selected classifier
+        self.classifier = self._create_classifier()
+        
+        if not self.classifier.is_available():
+            console.print(f"[yellow]Warning: {self.provider} classifier not available, attempting fallback[/yellow]")
+            # Try the other provider as fallback
+            fallback_provider = "gemini" if self.provider == "openai" else "openai"
+            fallback_classifier = self._create_classifier(fallback_provider)
+            if fallback_classifier.is_available():
+                console.print(f"[green]Using {fallback_provider} as fallback classifier[/green]")
+                self.classifier = fallback_classifier
+                self.provider = fallback_provider
+            else:
+                console.print("[red]No AI classifiers available![/red]")
+    
+    def _create_classifier(self, provider: str = None) -> ClassifierInterface:
+        """Create a classifier instance based on provider."""
+        provider = provider or self.provider
+        
+        if provider.lower() == "openai":
+            model = self.model if self.model.startswith("gpt") else "gpt-4o-mini"
+            return OpenAIClassifier(model)
+        elif provider.lower() == "gemini":
+            model = self.model if self.model.startswith("gemini") else "gemini-1.5-flash"
+            return GeminiClassifier(model)
+        else:
+            raise ValueError(f"Unknown classifier provider: {provider}")
+    
+    def classify_document(self, title: str, snippet: str = "", url: str = "") -> dict:
+        """
+        Classify a document as a Medicaid audit or not using AI.
+        
+        Args:
+            title: Document title
+            snippet: Document snippet/description
+            url: Document URL
+            
+        Returns:
+            dict: Classification result with confidence score and error info
+        """
+        result = self._classify_with_retry(title, snippet, url)
+        
+        # Convert to legacy dict format for backward compatibility
+        return result.to_dict()
+    
+    def _classify_with_retry(self, title: str, snippet: str = "", url: str = "") -> ClassificationResult:
+        """Classify with retry logic."""
+        last_error = None
+        
+        for attempt in range(self.retry_attempts):
+            try:
+                result = self.classifier.classify_document(title, snippet, url)
+                
+                if result.success:
+                    return result
+                else:
+                    last_error = result.error
+                    if self.show_errors:
+                        console.print(f"[yellow]Classification attempt {attempt + 1} failed: {result.error}[/yellow]")
+                    
+            except Exception as e:
+                last_error = str(e)
+                if self.show_errors:
+                    console.print(f"[red]Classification attempt {attempt + 1} error: {e}[/red]")
+        
+        # All attempts failed
+        return ClassificationResult(
+            is_medicaid_audit=False,
+            confidence=0.0,
+            document_type="unknown",
+            reasoning=f"All {self.retry_attempts} attempts failed. Last error: {last_error}",
+            success=False,
+            error=f"Failed after {self.retry_attempts} attempts: {last_error}",
+            provider=self.classifier.get_provider_name()
+        )
+    
+    def get_status(self) -> dict:
+        """Get current classifier status."""
+        return {
+            "provider": self.provider,
+            "model": self.model,
+            "available": self.classifier.is_available(),
+            "provider_name": self.classifier.get_provider_name()
+        }
     
     def classify_from_summary(self, title: str, snippet: str, url: str, source: str, 
                          metadata: Dict[str, Any] = None) -> Dict[str, Any]:
         """
-        Classify based on summary information including metadata.
-        Returns:
-            Dict containing classification results
-        """ 
-        # Extract metadata fields
-        author = ""
-        creation_date = ""
-        subject = ""
-        
-        if metadata:
-            author = metadata.get("author", "")
-            creation_date = metadata.get("creation_date", "")
-            subject = metadata.get("subject", "")
-        
-        prompt = f"""Analyze if this is a Medicaid audit report based on the available information.
-
-    Title: {title}
-    Snippet: {snippet}
-    URL: {url}
-    Source Domain: {source}
-    Document Author: {author if author else "Not available"}
-    Creation Date: {creation_date if creation_date else "Not available"}
-    Document Subject: {subject if subject else "Not available"}
-
-    Determine if this is specifically a Medicaid audit report (not a provider manual, guide, form, or general policy document).
-
-    Consider these factors:
-    1. Does the title/snippet indicate this is an audit, review, or investigation?
-    2. Is Medicaid the primary focus (not just mentioned)?
-    3. Does it appear to be from an authoritative audit source (auditor general, OIG, GAO)?
-    4. Are there indicators of audit content (findings, recommendations, compliance review)?
-    5. Does the author field indicate an audit office or inspector general?
-    6. Does the document subject suggest audit-related content?
-
-    Respond with ONLY valid JSON in this exact format:
-    {{
-        "is_medicaid_audit": true or false,
-        "confidence": 0.0 to 1.0,
-        "document_type": "audit_report" or "manual" or "guide" or "form" or "policy" or "other",
-        "reasoning": "Brief explanation of your determination"
-    }}"""
-
-        try:
-            response = self.model.generate_content(
-                prompt,
-                generation_config={
-                    'temperature': 0.1,
-                    'max_output_tokens': 200,
-                }
-            )
-            
-            # Debug the response
-            if not response or not hasattr(response, 'text'):
-                console.print(f"[red]Empty or invalid response from Gemini[/red]")
-                return {
-                    "is_medicaid_audit": False,
-                    "confidence": 0.0,
-                    "document_type": "unknown",
-                    "reasoning": "Empty response from AI"
-                }
-            
-            response_text = response.text
-            if not response_text or response_text.strip() == "":
-                console.print(f"[red]Empty response text from Gemini[/red]")
-                return {
-                    "is_medicaid_audit": False,
-                    "confidence": 0.0,
-                    "document_type": "unknown",
-                    "reasoning": "Empty response text from AI"
-                }
-            
-            # Clean the response - sometimes AI adds extra text before/after JSON
-            response_text = response_text.strip()
-            
-            # Try to find JSON in the response
-            json_start = response_text.find('{')
-            json_end = response_text.rfind('}') + 1
-            
-            if json_start == -1 or json_end == 0:
-                console.print(f"[red]No JSON found in response: {response_text[:100]}[/red]")
-                return {
-                    "is_medicaid_audit": False,
-                    "confidence": 0.0,
-                    "document_type": "unknown", 
-                    "reasoning": f"No JSON in response: {response_text[:50]}"
-                }
-            
-            json_text = response_text[json_start:json_end]
-            
-            # Parse the JSON response
-            result = json.loads(json_text)
-            return result
-            
-        except json.JSONDecodeError as e:
-            console.print(f"[red]JSON decode error: {e}[/red]")
-            console.print(f"[red]Response was: {response.text[:200] if response and hasattr(response, 'text') else 'No response'}[/red]")
-            return {
-                "is_medicaid_audit": False,
-                "confidence": 0.0,
-                "document_type": "unknown",
-                "reasoning": f"JSON parse error: {str(e)}"
-            }
-        except Exception as e:
-            console.print(f"[red]AI classification error: {e}[/red]")
-            return {
-                "is_medicaid_audit": False,
-                "confidence": 0.0,
-                "document_type": "unknown",
-                "reasoning": f"Classification failed: {str(e)}"
-            }
+        Legacy method for backward compatibility - uses the new classifier system.
+        """
+        # Use the new classification method
+        return self.classify_document(title, snippet, url)
 
     def classify_batch(self, search_results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
@@ -160,13 +140,11 @@ class MedicaidAuditClassifier:
         for idx, result in enumerate(search_results):
             console.print(f"  Analyzing [{idx + 1}/{len(search_results)}]: {result['title'][:50]}...")
             
-            # Pass metadata to classification
-            classification = self.classify_from_summary(
+            # Use the new classification method
+            classification = self.classify_document(
                 title=result.get('title', ''),
                 snippet=result.get('snippet', ''),
-                url=result.get('url', ''),
-                source=result.get('source', ''),
-                metadata=result.get('metadata', {})  # Pass the metadata
+                url=result.get('url', '')
             )
             
             # Add classification with specific field name
