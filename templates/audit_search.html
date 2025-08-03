@@ -1,40 +1,14 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Medicaid Audit Search & Queue - Admin Panel</title>
-    
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Bootstrap Icons -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
-    
-    <style>
-        body {
-            background-color: #1a1a1a;
-            color: #e0e0e0;
-        }
-        
-        .navbar {
-            background-color: #2d2d2d !important;
-        }
-        
-        .card {
-            background-color: #2d2d2d;
-            border: 1px solid #404040;
-        }
-        
-        .table-dark {
-            --bs-table-bg: #2d2d2d;
-        }
-        
+{% extends "layout.html" %}
+
+{% block head_content %}
+<title>Audit Search & Queue - Medicaid Audit Report Analyzer</title>
+<style>
         .duplicate-row {
-            background-color: #4a3a1a !important;
+            background-color: rgba(255, 193, 7, 0.1) !important;
         }
         
         .selected-row {
-            background-color: #1a3a4a !important;
+            background-color: rgba(13, 110, 253, 0.1) !important;
         }
         
         .ai-override {
@@ -90,34 +64,14 @@
             color: #000;
         }
     </style>
-</head>
-<body>
-    <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-dark">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="{{ url_for('dashboard') }}">
-                <i class="bi bi-file-earmark-text"></i>
-                Medicaid Audit Admin
-            </a>
-            <div class="navbar-nav ms-auto">
-                <a class="nav-link" href="{{ url_for('dashboard') }}">
-                    <i class="bi bi-house"></i> Dashboard
-                </a>
-                <a class="nav-link" href="{{ url_for('upload') }}">
-                    <i class="bi bi-upload"></i> Upload Report
-                </a>
-                <a class="nav-link active" href="{{ url_for('audit_search_page') }}">
-                    <i class="bi bi-search"></i> Search & Queue
-                </a>
-            </div>
-        </div>
-    </nav>
+{% endblock %}
 
-    <div class="container-fluid mt-4">
+{% block content %}
+<div class="container-fluid">
         <div class="row">
             <div class="col-12">
                 <h1 class="mb-4">
-                    <i class="bi bi-search"></i>
+                    <i class="fas fa-search"></i>
                     Medicaid Audit Search & Queue Management
                 </h1>
                 
@@ -125,7 +79,7 @@
                 <div class="card mb-4">
                     <div class="card-header">
                         <h5 class="mb-0">
-                            <i class="bi bi-gear"></i>
+                            <i class="fas fa-cogs"></i>
                             Search Configuration
                         </h5>
                     </div>
@@ -144,7 +98,7 @@
                                 <button onclick="executeSearch()" class="btn btn-primary" id="search-btn">
                                     <span class="loading-spinner spinner-border spinner-border-sm me-2" role="status"></span>
                                     <span class="btn-text">
-                                        <i class="bi bi-search"></i>
+                                        <i class="fas fa-search"></i>
                                         Execute Search
                                     </span>
                                 </button>
@@ -152,7 +106,7 @@
                             <div class="col-md-6">
                                 <div id="search-info" class="text-muted">
                                     <small>
-                                        <i class="bi bi-info-circle"></i>
+                                        <i class="fas fa-info-circle"></i>
                                         Searches government audit sites for new Medicaid audit reports using AI classification.
                                     </small>
                                 </div>
@@ -165,7 +119,7 @@
                 <div class="card mb-4" id="queue-status-card" style="display:none;">
                     <div class="card-header">
                         <h5 class="mb-0">
-                            <i class="bi bi-list-check"></i>
+                            <i class="fas fa-list-check"></i>
                             Processing Queue Status
                         </h5>
                     </div>
@@ -179,7 +133,7 @@
                     <div class="card">
                         <div class="card-header d-flex justify-content-between align-items-center">
                             <h5 class="mb-0">
-                                <i class="bi bi-file-earmark-pdf"></i>
+                                <i class="fas fa-file-pdf"></i>
                                 Search Results
                             </h5>
                             <div class="btn-group" role="group">
@@ -188,7 +142,7 @@
                                 <button onclick="addToQueue()" class="btn btn-success" id="queue-btn">
                                     <span class="loading-spinner spinner-border spinner-border-sm me-2" role="status"></span>
                                     <span class="btn-text">
-                                        <i class="bi bi-plus-circle"></i>
+                                        <i class="fas fa-plus-circle"></i>
                                         Add Selected to Queue
                                     </span>
                                 </button>
@@ -224,7 +178,7 @@
                     <div class="card mt-4">
                         <div class="card-header">
                             <h5 class="mb-0 text-warning">
-                                <i class="bi bi-exclamation-triangle"></i>
+                                <i class="fas fa-exclamation-triangle"></i>
                                 Potential Duplicates Found
                             </h5>
                         </div>
@@ -247,9 +201,10 @@
             </div>
         </div>
     </div>
+</div>
+{% endblock %}
 
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+{% block scripts %}
     
     <script>
         let searchResults = [];
@@ -364,7 +319,7 @@
         
         function displayStats(stats) {
             document.getElementById('results-stats').innerHTML = `
-                <i class="bi bi-info-circle"></i>
+                <i class="fas fa-info-circle"></i>
                 Total: ${stats.total} | 
                 Likely Audits: ${stats.audits} | 
                 Duplicates: ${stats.duplicates}
@@ -465,5 +420,4 @@
         // Initial queue status check
         updateQueueStatus();
     </script>
-</body>
-</html>
+{% endblock %}
