@@ -83,10 +83,57 @@ class MedicaidAuditClassifier:
                 }
             )
             
+            # Debug the response
+            if not response or not hasattr(response, 'text'):
+                console.print(f"[red]Empty or invalid response from Gemini[/red]")
+                return {
+                    "is_medicaid_audit": False,
+                    "confidence": 0.0,
+                    "document_type": "unknown",
+                    "reasoning": "Empty response from AI"
+                }
+            
+            response_text = response.text
+            if not response_text or response_text.strip() == "":
+                console.print(f"[red]Empty response text from Gemini[/red]")
+                return {
+                    "is_medicaid_audit": False,
+                    "confidence": 0.0,
+                    "document_type": "unknown",
+                    "reasoning": "Empty response text from AI"
+                }
+            
+            # Clean the response - sometimes AI adds extra text before/after JSON
+            response_text = response_text.strip()
+            
+            # Try to find JSON in the response
+            json_start = response_text.find('{')
+            json_end = response_text.rfind('}') + 1
+            
+            if json_start == -1 or json_end == 0:
+                console.print(f"[red]No JSON found in response: {response_text[:100]}[/red]")
+                return {
+                    "is_medicaid_audit": False,
+                    "confidence": 0.0,
+                    "document_type": "unknown", 
+                    "reasoning": f"No JSON in response: {response_text[:50]}"
+                }
+            
+            json_text = response_text[json_start:json_end]
+            
             # Parse the JSON response
-            result = json.loads(response.text)
+            result = json.loads(json_text)
             return result
             
+        except json.JSONDecodeError as e:
+            console.print(f"[red]JSON decode error: {e}[/red]")
+            console.print(f"[red]Response was: {response.text[:200] if response and hasattr(response, 'text') else 'No response'}[/red]")
+            return {
+                "is_medicaid_audit": False,
+                "confidence": 0.0,
+                "document_type": "unknown",
+                "reasoning": f"JSON parse error: {str(e)}"
+            }
         except Exception as e:
             console.print(f"[red]AI classification error: {e}[/red]")
             return {
