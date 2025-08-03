@@ -36,7 +36,7 @@ app.config['GEMINI_API_KEY'] = os.environ.get('GEMINI_API_KEY')
 
 with app.app_context():
     # Import models
-    from models import Report, Finding, Recommendation, Objective, Keyword, AIProcessingLog
+    from models import Report, Finding, Recommendation, Objective, Keyword, AIProcessingLog, ScrapingQueue, SearchHistory, DuplicateCheck
     
     # Create all database tables
     db.create_all()

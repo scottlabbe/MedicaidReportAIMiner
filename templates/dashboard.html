@@ -50,6 +50,42 @@
 </div>
 
 <div class="row">
+    <!-- New Audit Search Card -->
+    <div class="col-md-6 mb-4">
+        <div class="card border-warning h-100">
+            <div class="card-body text-center">
+                <h5 class="card-title">
+                    <i class="fas fa-search me-2"></i>
+                    Automated Audit Search
+                </h5>
+                <p class="mt-3">Search government sites and automatically queue new audit reports for processing</p>
+                <a href="{{ url_for('audit_search_page') }}" class="btn btn-warning mt-2">
+                    <i class="fas fa-search me-1"></i> Search & Queue
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Processing Tools Card -->
+    <div class="col-md-6 mb-4">
+        <div class="card border-secondary h-100">
+            <div class="card-body text-center">
+                <h5 class="card-title">
+                    <i class="fas fa-cogs me-2"></i>
+                    Processing Tools
+                </h5>
+                <p class="mt-3">Advanced PDF parsing and text analysis tools</p>
+                <div class="btn-group-vertical mt-2" role="group">
+                    <a href="{{ url_for('parse_review') }}" class="btn btn-outline-secondary btn-sm">Parse Review</a>
+                    <a href="{{ url_for('compare_upload') }}" class="btn btn-outline-secondary btn-sm">Compare Parsers</a>
+                    <a href="{{ url_for('chunking_upload') }}" class="btn btn-outline-secondary btn-sm">Chunking Analysis</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
     <!-- Recent Reports -->
     <div class="col-md-8 mb-4">
         <div class="card">

@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medicaid Audit Search & Queue - Admin Panel</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <style>
+        body {
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+        }
+        
+        .navbar {
+            background-color: #2d2d2d !important;
+        }
+        
+        .card {
+            background-color: #2d2d2d;
+            border: 1px solid #404040;
+        }
+        
+        .table-dark {
+            --bs-table-bg: #2d2d2d;
+        }
+        
+        .duplicate-row {
+            background-color: #4a3a1a !important;
+        }
+        
+        .selected-row {
+            background-color: #1a3a4a !important;
+        }
+        
+        .ai-override {
+            font-style: italic;
+            color: #dc3545;
+        }
+        
+        .status-badge {
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 0.875em;
+            margin: 2px;
+        }
+        
+        .status-pending {
+            background: #ffc107;
+            color: #000;
+        }
+        
+        .status-processing {
+            background: #17a2b8;
+            color: white;
+        }
+        
+        .status-completed {
+            background: #28a745;
+            color: white;
+        }
+        
+        .status-failed {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .status-duplicate {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .loading-spinner {
+            display: none;
+        }
+        
+        .loading .loading-spinner {
+            display: inline-block;
+        }
+        
+        .loading .btn-text {
+            display: none;
+        }
+        
+        .btn-outline-light:hover {
+            color: #000;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{{ url_for('dashboard') }}">
+                <i class="bi bi-file-earmark-text"></i>
+                Medicaid Audit Admin
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="{{ url_for('dashboard') }}">
+                    <i class="bi bi-house"></i> Dashboard
+                </a>
+                <a class="nav-link" href="{{ url_for('upload') }}">
+                    <i class="bi bi-upload"></i> Upload Report
+                </a>
+                <a class="nav-link active" href="{{ url_for('audit_search_page') }}">
+                    <i class="bi bi-search"></i> Search & Queue
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-4">
+        <div class="row">
+            <div class="col-12">
+                <h1 class="mb-4">
+                    <i class="bi bi-search"></i>
+                    Medicaid Audit Search & Queue Management
+                </h1>
+                
+                <!-- Search Controls -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="bi bi-gear"></i>
+                            Search Configuration
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row align-items-end">
+                            <div class="col-md-3">
+                                <label for="timeframe" class="form-label">Time Period:</label>
+                                <select id="timeframe" class="form-select">
+                                    <option value="7">Last 7 Days</option>
+                                    <option value="30" selected>Last 30 Days</option>
+                                    <option value="90">Last Quarter</option>
+                                    <option value="365">Last Year</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <button onclick="executeSearch()" class="btn btn-primary" id="search-btn">
+                                    <span class="loading-spinner spinner-border spinner-border-sm me-2" role="status"></span>
+                                    <span class="btn-text">
+                                        <i class="bi bi-search"></i>
+                                        Execute Search
+                                    </span>
+                                </button>
+                            </div>
+                            <div class="col-md-6">
+                                <div id="search-info" class="text-muted">
+                                    <small>
+                                        <i class="bi bi-info-circle"></i>
+                                        Searches government audit sites for new Medicaid audit reports using AI classification.
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Queue Status -->
+                <div class="card mb-4" id="queue-status-card" style="display:none;">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="bi bi-list-check"></i>
+                            Processing Queue Status
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="queue-stats"></div>
+                    </div>
+                </div>
+                
+                <!-- Search Results -->
+                <div id="results-section" style="display:none;">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">
+                                <i class="bi bi-file-earmark-pdf"></i>
+                                Search Results
+                            </h5>
+                            <div class="btn-group" role="group">
+                                <button onclick="selectAll()" class="btn btn-outline-light btn-sm">Select All</button>
+                                <button onclick="selectNone()" class="btn btn-outline-light btn-sm">Select None</button>
+                                <button onclick="addToQueue()" class="btn btn-success" id="queue-btn">
+                                    <span class="loading-spinner spinner-border spinner-border-sm me-2" role="status"></span>
+                                    <span class="btn-text">
+                                        <i class="bi bi-plus-circle"></i>
+                                        Add Selected to Queue
+                                    </span>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <span id="selection-count" class="badge bg-info">0 selected</span>
+                                <span id="results-stats" class="text-muted ms-3"></span>
+                            </div>
+                            
+                            <div class="table-responsive">
+                                <table class="table table-dark table-striped" id="results-table">
+                                    <thead>
+                                        <tr>
+                                            <th width="50">Select</th>
+                                            <th>Title</th>
+                                            <th width="120">Source</th>
+                                            <th width="120">AI Classification</th>
+                                            <th width="120">Override</th>
+                                            <th width="100">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="results-tbody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Duplicates Section -->
+                <div id="duplicates-section" style="display:none;">
+                    <div class="card mt-4">
+                        <div class="card-header">
+                            <h5 class="mb-0 text-warning">
+                                <i class="bi bi-exclamation-triangle"></i>
+                                Potential Duplicates Found
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-dark">
+                                    <thead>
+                                        <tr>
+                                            <th>Title</th>
+                                            <th>URL</th>
+                                            <th>Existing Report</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="duplicates-tbody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        let searchResults = [];
+        let userOverrides = {};
+        
+        function executeSearch() {
+            const days = document.getElementById('timeframe').value;
+            const searchBtn = document.getElementById('search-btn');
+            
+            searchBtn.classList.add('loading');
+            
+            fetch('/api/audit-search', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({days_back: parseInt(days)})
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    searchResults = data.results;
+                    displayResults(data.results);
+                    displayDuplicates(data.results.filter(r => r.is_duplicate));
+                    displayStats(data.stats);
+                    updateQueueStatus();
+                } else {
+                    alert('Search failed: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(e => {
+                console.error('Search error:', e);
+                alert('Search failed. Please check the console for details.');
+            })
+            .finally(() => {
+                searchBtn.classList.remove('loading');
+            });
+        }
+        
+        function displayResults(results) {
+            const tbody = document.getElementById('results-tbody');
+            tbody.innerHTML = '';
+            
+            results.forEach((result, idx) => {
+                const aiClass = result.ai_classification || {};
+                const isAudit = aiClass.is_medicaid_audit;
+                const confidence = Math.round((aiClass.confidence || 0) * 100);
+                
+                const row = tbody.insertRow();
+                if (result.is_duplicate) row.classList.add('duplicate-row');
+                
+                row.innerHTML = `
+                    <td>
+                        <input type="checkbox" onchange="updateSelection()" 
+                            data-idx="${idx}" ${result.is_duplicate ? 'disabled' : ''} 
+                            class="form-check-input">
+                    </td>
+                    <td>
+                        <div class="fw-bold">${result.title}</div>
+                        <small class="text-muted">${result.snippet || ''}</small>
+                    </td>
+                    <td><span class="badge bg-secondary">${result.source}</span></td>
+                    <td>
+                        <span class="badge ${isAudit ? 'bg-success' : 'bg-warning text-dark'}">
+                            ${isAudit ? '✓ Audit' : '✗ Not Audit'} (${confidence}%)
+                        </span>
+                    </td>
+                    <td>
+                        <select onchange="setOverride('${result.url}', this.value)" 
+                            class="form-select form-select-sm" ${result.is_duplicate ? 'disabled' : ''}>
+                            <option value="">AI Decision</option>
+                            <option value="true">Force Audit</option>
+                            <option value="false">Force Skip</option>
+                        </select>
+                    </td>
+                    <td>
+                        ${result.is_duplicate ? 
+                            '<span class="status-badge status-duplicate">Duplicate</span>' : 
+                            '<span class="status-badge status-pending">New</span>'}
+                    </td>
+                `;
+            });
+            
+            document.getElementById('results-section').style.display = 'block';
+        }
+        
+        function displayDuplicates(duplicates) {
+            if (duplicates.length === 0) {
+                document.getElementById('duplicates-section').style.display = 'none';
+                return;
+            }
+            
+            const tbody = document.getElementById('duplicates-tbody');
+            tbody.innerHTML = '';
+            
+            duplicates.forEach(dup => {
+                const row = tbody.insertRow();
+                row.innerHTML = `
+                    <td>${dup.title}</td>
+                    <td><small class="text-muted">${dup.url}</small></td>
+                    <td>
+                        ${dup.duplicate_report ? 
+                            `<a href="/report/${dup.duplicate_report.id}" class="text-info">
+                                Report #${dup.duplicate_report.id} (${dup.duplicate_report.year}/${dup.duplicate_report.month})
+                            </a>` : 
+                            'In queue'
+                        }
+                    </td>
+                `;
+            });
+            
+            document.getElementById('duplicates-section').style.display = 'block';
+        }
+        
+        function displayStats(stats) {
+            document.getElementById('results-stats').innerHTML = `
+                <i class="bi bi-info-circle"></i>
+                Total: ${stats.total} | 
+                Likely Audits: ${stats.audits} | 
+                Duplicates: ${stats.duplicates}
+            `;
+        }
+        
+        function setOverride(url, value) {
+            if (value === "") {
+                delete userOverrides[url];
+            } else {
+                userOverrides[url] = value === "true";
+            }
+        }
+        
+        function updateSelection() {
+            const selected = document.querySelectorAll('#results-tbody input:checked').length;
+            document.getElementById('selection-count').textContent = `${selected} selected`;
+        }
+        
+        function selectAll() {
+            document.querySelectorAll('#results-tbody input:not(:disabled)').forEach(cb => {
+                cb.checked = true;
+            });
+            updateSelection();
+        }
+        
+        function selectNone() {
+            document.querySelectorAll('#results-tbody input').forEach(cb => {
+                cb.checked = false;
+            });
+            updateSelection();
+        }
+        
+        function addToQueue() {
+            const selected = [];
+            document.querySelectorAll('#results-tbody input:checked').forEach(cb => {
+                const idx = parseInt(cb.dataset.idx);
+                selected.push(searchResults[idx]);
+            });
+            
+            if (selected.length === 0) {
+                alert('No items selected');
+                return;
+            }
+            
+            const queueBtn = document.getElementById('queue-btn');
+            queueBtn.classList.add('loading');
+            
+            fetch('/api/queue/add', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    items: selected,
+                    overrides: userOverrides
+                })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    alert(`Added ${data.added} items to processing queue`);
+                    updateQueueStatus();
+                    executeSearch(); // Refresh to show updated statuses
+                } else {
+                    alert('Queue add failed: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(e => {
+                console.error('Queue add error:', e);
+                alert('Queue add failed. Please check the console for details.');
+            })
+            .finally(() => {
+                queueBtn.classList.remove('loading');
+            });
+        }
+        
+        function updateQueueStatus() {
+            fetch('/api/queue/status')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.stats) {
+                        const stats = data.stats;
+                        document.getElementById('queue-stats').innerHTML = `
+                            <span class="status-badge status-pending">Pending: ${stats.pending || 0}</span>
+                            <span class="status-badge status-processing">Processing: ${stats.downloading || 0}</span>
+                            <span class="status-badge status-completed">Completed: ${stats.completed || 0}</span>
+                            <span class="status-badge status-failed">Failed: ${stats.failed || 0}</span>
+                            <span class="status-badge status-duplicate">Duplicates: ${stats.duplicate || 0}</span>
+                        `;
+                        document.getElementById('queue-status-card').style.display = 'block';
+                    }
+                })
+                .catch(e => console.error('Queue status error:', e));
+        }
+        
+        // Poll queue status every 10 seconds
+        setInterval(updateQueueStatus, 10000);
+        
+        // Initial queue status check
+        updateQueueStatus();
+    </script>
+</body>
+</html>

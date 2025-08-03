@@ -2,6 +2,7 @@ from datetime import datetime
 from app import db
 from sqlalchemy import Column, Integer, String, Text, Boolean, Float, Date, ForeignKey, DateTime, Table
 from sqlalchemy.orm import relationship
+from sqlalchemy.dialects.postgresql import JSONB
 
 # Association table for the many-to-many relationship between Report and Keyword
 report_keywords_association = Table(
@@ -134,3 +135,73 @@ class AIProcessingLog(db.Model):
     
     def __repr__(self):
         return f"<AIProcessingLog {self.id} for Report {self.report_id}>"
+
+
+class ScrapingQueue(db.Model):
+    __tablename__ = 'scraping_queue'
+    
+    id = Column(Integer, primary_key=True)
+    url = Column(Text, nullable=False, unique=True)
+    title = Column(Text, nullable=False)
+    source_domain = Column(String(255))
+    document_metadata = Column(JSONB)
+    ai_classification = Column(JSONB)
+    status = Column(String(50), default='pending')  # pending, downloading, processing, completed, failed, duplicate
+    retry_count = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    completed_at = Column(DateTime)
+    error_message = Column(Text)
+    report_id = Column(Integer, ForeignKey('reports.id'))
+    user_override = Column(Boolean, default=False)
+    
+    # Relationships
+    report = relationship("Report")
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'url': self.url,
+            'title': self.title,
+            'source_domain': self.source_domain,
+            'metadata': self.document_metadata,
+            'ai_classification': self.ai_classification,
+            'status': self.status,
+            'retry_count': self.retry_count,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'completed_at': self.completed_at.isoformat() if self.completed_at else None,
+            'error_message': self.error_message,
+            'report_id': self.report_id,
+            'user_override': self.user_override
+        }
+    
+    def __repr__(self):
+        return f"<ScrapingQueue {self.id}: {self.title[:50]}...>"
+
+
+class SearchHistory(db.Model):
+    __tablename__ = 'search_history'
+    
+    id = Column(Integer, primary_key=True)
+    search_params = Column(JSONB)
+    results_count = Column(Integer)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f"<SearchHistory {self.id}: {self.results_count} results>"
+
+
+class DuplicateCheck(db.Model):
+    __tablename__ = 'duplicate_checks'
+    
+    id = Column(Integer, primary_key=True)
+    queue_item_id = Column(Integer, ForeignKey('scraping_queue.id'), nullable=False)
+    existing_report_id = Column(Integer, ForeignKey('reports.id'), nullable=False)
+    similarity_score = Column(Float)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    queue_item = relationship("ScrapingQueue")
+    existing_report = relationship("Report")
+    
+    def __repr__(self):
+        return f"<DuplicateCheck {self.id}: Queue {self.queue_item_id} -> Report {self.existing_report_id}>"

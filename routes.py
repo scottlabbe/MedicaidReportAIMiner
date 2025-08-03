@@ -19,6 +19,9 @@ from utils.parser_strategies import ParsingStrategy, get_parser_function
 from utils.comparison_storage import ComparisonStorage
 from utils.chunking_strategies import ChunkingStrategy, get_chunker_function, calculate_chunk_statistics, count_tokens
 from utils.chunking_storage import ChunkingComparisonStorage
+from models import ScrapingQueue, SearchHistory, DuplicateCheck
+from services.audit_search_service import AuditSearchService
+from sqlalchemy import func
 
 def register_routes(app):
     @app.route('/')
@@ -908,3 +911,107 @@ def register_routes(app):
             return redirect(url_for('chunking_upload'))
             
         return render_template('chunking_view.html', comparison_data=comparison_data)
+        
+    # Audit Search and Scraping Routes
+    @app.route('/audit-search')
+    def audit_search_page():
+        """Main audit search interface."""
+        return render_template('audit_search.html')
+
+    @app.route('/api/audit-search', methods=['POST'])
+    def execute_audit_search():
+        """Execute search and return results."""
+        days_back = request.json.get('days_back', 30)
+        
+        try:
+            service = AuditSearchService()
+            results = service.search_and_classify(days_back)
+            
+            return jsonify({
+                'success': True,
+                'results': results,
+                'stats': {
+                    'total': len(results),
+                    'audits': sum(1 for r in results 
+                                 if r.get('ai_classification', {}).get('is_medicaid_audit')),
+                    'duplicates': sum(1 for r in results if r.get('is_duplicate'))
+                }
+            })
+        except Exception as e:
+            logging.error(f"Search execution error: {str(e)}")
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+
+    @app.route('/api/queue/add', methods=['POST'])
+    def add_to_scraping_queue():
+        """Add selected items to scraping queue."""
+        items = request.json.get('items', [])
+        user_overrides = request.json.get('overrides', {})
+        
+        try:
+            service = AuditSearchService()
+            added = service.add_to_queue(items, user_overrides)
+            
+            return jsonify({
+                'success': True,
+                'added': added
+            })
+        except Exception as e:
+            logging.error(f"Queue add error: {str(e)}")
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+
+    @app.route('/api/queue/status')
+    def scraping_queue_status():
+        """Get current scraping queue status."""
+        try:
+            stats = db.session.query(
+                ScrapingQueue.status,
+                func.count(ScrapingQueue.id)
+            ).group_by(ScrapingQueue.status).all()
+            
+            recent = db.session.query(ScrapingQueue).order_by(
+                ScrapingQueue.created_at.desc()
+            ).limit(10).all()
+            
+            return jsonify({
+                'stats': dict(stats),
+                'recent': [item.to_dict() for item in recent]
+            })
+        except Exception as e:
+            logging.error(f"Queue status error: {str(e)}")
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+
+    @app.route('/api/duplicates/<path:url>')
+    def check_audit_duplicates(url):
+        """Get duplicate information for a URL."""
+        try:
+            report = db.session.query(Report).filter_by(
+                original_report_source_url=url
+            ).first()
+            
+            if report:
+                return jsonify({
+                    'found': True,
+                    'report': {
+                        'id': report.id,
+                        'title': report.report_title,
+                        'year': report.publication_year,
+                        'month': report.publication_month
+                    }
+                })
+            
+            return jsonify({'found': False})
+        except Exception as e:
+            logging.error(f"Duplicate check error: {str(e)}")
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500

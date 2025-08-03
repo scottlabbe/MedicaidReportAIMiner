@@ -1,0 +1,35 @@
+search:
+  audit_sites:
+    federal:
+      - gao.gov
+      - oig.hhs.gov
+      - oig.treasury.gov
+      - oig.justice.gov
+      - recovery.gov
+    state:
+      - osa.georgia.gov
+      - sao.texas.gov
+      - auditor.ca.gov
+      - osa.state.ms.us
+      - auditors.ohio.gov
+      - osa.state.la.us
+      - osa.arkansas.gov
+      - auditor.mo.gov
+      - sao.state.ia.us
+      - auditor.utah.gov
+      - osa.state.ok.us
+      - auditor.nebraska.gov
+      - osa.ks.gov
+      - auditor.sd.gov
+      - sao.nd.gov
+      - auditor.mt.gov
+      - auditor.wy.gov
+      - auditor.co.gov
+      - auditor.nm.gov
+      - azauditor.gov
+      - auditor.nv.gov
+      - auditor.idaho.gov
+      - sao.wa.gov
+      - sos.oregon.gov
+      - auditor.alaska.gov
+      - auditor.hawaii.gov

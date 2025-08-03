@@ -49,6 +49,18 @@ def get_file_hash(file_path):
             sha256_hash.update(byte_block)
     return sha256_hash.hexdigest()
 
+def get_file_hash_memory(file_content):
+    """
+    Calculate SHA-256 hash of file content in memory.
+    
+    Args:
+        file_content: Bytes content of the file
+        
+    Returns:
+        str: SHA-256 hash of the file content
+    """
+    return hashlib.sha256(file_content).hexdigest()
+
 def extract_text_from_pdf_memory(pdf_io):
     """
     Extract text content from a PDF file in memory.
