@@ -74,7 +74,7 @@ class MedicaidAuditSearcher:
        
        # Exclude obvious non-audits
        exclude_terms = ['manual', 'guide', 'form', 'application', 'faq', 
-                       'enrollment', 'provider directory', 'bulletin', 'newsletter']
+                        'provider directory', 'bulletin', 'newsletter']
        if any(term in title_lower for term in exclude_terms):
            return False
        
