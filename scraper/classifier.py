@@ -26,7 +26,7 @@ class MedicaidAuditClassifier:
         
         classifier_config = self.config.get('classifier', {})
         self.provider = classifier_config.get('provider', 'openai')
-        self.model = classifier_config.get('model', 'gpt-4o-mini')
+        self.model = classifier_config.get('model', 'gpt-4.1-nano')
         self.show_errors = classifier_config.get('show_errors', True)
         self.retry_attempts = classifier_config.get('retry_attempts', 2)
         
@@ -50,7 +50,7 @@ class MedicaidAuditClassifier:
         provider = provider or self.provider
         
         if provider.lower() == "openai":
-            model = self.model if self.model.startswith("gpt") else "gpt-4o-mini"
+            model = self.model if self.model.startswith("gpt") else "gpt-4.1-nano"
             return OpenAIClassifier(model)
         elif provider.lower() == "gemini":
             model = self.model if self.model.startswith("gemini") else "gemini-1.5-flash"

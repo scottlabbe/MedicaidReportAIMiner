@@ -48,6 +48,6 @@ search:
 
 classifier:
   provider: "openai"  # "openai" or "gemini"
-  model: "gpt-4o-mini"  # for openai, or "gemini-1.5-flash" for gemini
+  model: "gpt-4.1-nano"  # Using existing GPT nano model from ai_extraction.py
   show_errors: true
   retry_attempts: 2
