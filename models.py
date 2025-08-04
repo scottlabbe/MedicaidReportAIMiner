@@ -146,7 +146,7 @@ class ScrapingQueue(db.Model):
     source_domain = Column(String(255))
     document_metadata = Column(JSONB)
     ai_classification = Column(JSONB)
-    status = Column(String(50), default='pending')  # pending, downloading, processing, completed, failed, duplicate
+    status = Column(String(50), default='pending_review')  # pending_review, pending, downloading, processing, completed, failed, duplicate, skipped
     retry_count = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
     completed_at = Column(DateTime)

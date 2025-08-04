@@ -45,7 +45,7 @@ class AuditSearchService:
         in_queue = db.session.query(ScrapingQueue).filter_by(
             url=url
         ).filter(
-            ScrapingQueue.status.in_(['pending', 'downloading', 'processing'])
+            ScrapingQueue.status.in_(['pending_review', 'pending', 'downloading', 'processing'])
         ).first()
         
         return in_queue is not None
@@ -94,12 +94,57 @@ class AuditSearchService:
         
         db.session.commit()
         
-        # Start processing in background
-        if added_count > 0:
-            self._start_background_processing()
+        # Note: Items are now added to 'pending_review' status
+        # Background processing will start only after user approval
             
         return added_count
     
+    def get_pending_review_items(self):
+        """Get all items pending review."""
+        return db.session.query(ScrapingQueue).filter_by(
+            status='pending_review'
+        ).order_by(ScrapingQueue.created_at.desc()).all()
+    
+    def approve_for_processing(self, item_ids):
+        """Approve selected items for full AI processing."""
+        approved_count = 0
+        
+        for item_id in item_ids:
+            item = db.session.query(ScrapingQueue).filter_by(
+                id=item_id,
+                status='pending_review'
+            ).first()
+            
+            if item:
+                item.status = 'pending'
+                approved_count += 1
+        
+        db.session.commit()
+        
+        # Start background processing for approved items
+        if approved_count > 0:
+            self._start_background_processing()
+            
+        return approved_count
+    
+    def skip_items(self, item_ids):
+        """Skip selected items (mark as skipped)."""
+        skipped_count = 0
+        
+        for item_id in item_ids:
+            item = db.session.query(ScrapingQueue).filter_by(
+                id=item_id,
+                status='pending_review'
+            ).first()
+            
+            if item:
+                item.status = 'skipped'
+                item.completed_at = datetime.utcnow()
+                skipped_count += 1
+        
+        db.session.commit()
+        return skipped_count
+
     def _start_background_processing(self):
         """Start processing queue in background thread."""
         from services.queue_processor import QueueProcessor

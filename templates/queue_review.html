@@ -1,0 +1,258 @@
+{% extends "layout.html" %}
+
+{% block title %}Review Queue - Medicaid Audit Reports{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-list-check"></i> Review Queue</h2>
+                <div>
+                    <a href="{{ url_for('audit_search') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-search"></i> Back to Search
+                    </a>
+                </div>
+            </div>
+
+            {% if total_pending == 0 %}
+                <div class="alert alert-info text-center">
+                    <i class="fas fa-inbox fa-3x mb-3"></i>
+                    <h4>No Reports Pending Review</h4>
+                    <p>Use the audit search to find and add reports to the review queue.</p>
+                    <a href="{{ url_for('audit_search') }}" class="btn btn-primary">
+                        <i class="fas fa-search"></i> Start Search
+                    </a>
+                </div>
+            {% else %}
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <div class="row align-items-center">
+                            <div class="col-md-6">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-clock"></i> 
+                                    {{ total_pending }} Report{{ 's' if total_pending != 1 else '' }} Pending Review
+                                </h5>
+                            </div>
+                            <div class="col-md-6 text-end">
+                                <div class="btn-group" role="group">
+                                    <button type="button" class="btn btn-outline-secondary" onclick="selectAll()">
+                                        <i class="fas fa-check-square"></i> Select All
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary" onclick="selectNone()">
+                                        <i class="fas fa-square"></i> Select None
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <strong>Cost Control:</strong> Only approved reports will be processed with AI extraction. 
+                            This saves on OpenAI costs by letting you review before full processing.
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="btn-group" role="group">
+                                <button type="button" class="btn btn-success" onclick="approveSelected()">
+                                    <i class="fas fa-check"></i> Process Selected Reports
+                                </button>
+                                <button type="button" class="btn btn-secondary" onclick="skipSelected()">
+                                    <i class="fas fa-times"></i> Skip Selected
+                                </button>
+                            </div>
+                            <small class="text-muted ms-3">
+                                <span id="selectedCount">0</span> reports selected
+                            </small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    {% for item in pending_items %}
+                    <div class="col-md-6 mb-3">
+                        <div class="card h-100 queue-item" data-item-id="{{ item.id }}">
+                            <div class="card-header">
+                                <div class="form-check">
+                                    <input class="form-check-input item-checkbox" type="checkbox" 
+                                           id="item_{{ item.id }}" onchange="updateSelectedCount()">
+                                    <label class="form-check-label fw-bold" for="item_{{ item.id }}">
+                                        {{ item.title | truncate(80) }}
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-2">
+                                    <small class="text-muted">
+                                        <i class="fas fa-globe"></i> {{ item.source_domain }}
+                                    </small>
+                                </div>
+
+                                {% if item.ai_classification %}
+                                <div class="mb-2">
+                                    {% if item.ai_classification.get('is_medicaid_audit') %}
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-check"></i> Medicaid Audit
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-warning">
+                                            <i class="fas fa-question"></i> Not Medicaid Audit
+                                        </span>
+                                    {% endif %}
+                                    
+                                    {% if item.user_override %}
+                                        <span class="badge bg-info">
+                                            <i class="fas fa-user"></i> User Override
+                                        </span>
+                                    {% endif %}
+                                </div>
+
+                                {% if item.ai_classification.get('reasoning') %}
+                                <div class="mb-2">
+                                    <small class="text-muted">
+                                        <strong>AI Reasoning:</strong> {{ item.ai_classification.reasoning | truncate(150) }}
+                                    </small>
+                                </div>
+                                {% endif %}
+                                {% endif %}
+
+                                <div class="mb-2">
+                                    <small class="text-muted">
+                                        <i class="fas fa-clock"></i> Added {{ item.created_at.strftime('%Y-%m-%d %H:%M') }}
+                                    </small>
+                                </div>
+
+                                <div class="d-grid gap-2">
+                                    <a href="{{ item.url }}" target="_blank" class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-external-link-alt"></i> View Original PDF
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div class="card mt-4">
+                    <div class="card-footer text-center">
+                        <div class="btn-group" role="group">
+                            <button type="button" class="btn btn-success btn-lg" onclick="approveSelected()">
+                                <i class="fas fa-check"></i> Process Selected Reports
+                            </button>
+                            <button type="button" class="btn btn-secondary btn-lg" onclick="skipSelected()">
+                                <i class="fas fa-times"></i> Skip Selected
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+function selectAll() {
+    document.querySelectorAll('.item-checkbox').forEach(checkbox => {
+        checkbox.checked = true;
+    });
+    updateSelectedCount();
+}
+
+function selectNone() {
+    document.querySelectorAll('.item-checkbox').forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    updateSelectedCount();
+}
+
+function updateSelectedCount() {
+    const selected = document.querySelectorAll('.item-checkbox:checked').length;
+    document.getElementById('selectedCount').textContent = selected;
+}
+
+function getSelectedItemIds() {
+    const selected = [];
+    document.querySelectorAll('.item-checkbox:checked').forEach(checkbox => {
+        const itemId = checkbox.closest('.queue-item').dataset.itemId;
+        selected.push(parseInt(itemId));
+    });
+    return selected;
+}
+
+function approveSelected() {
+    const selectedIds = getSelectedItemIds();
+    if (selectedIds.length === 0) {
+        alert('Please select at least one report to process.');
+        return;
+    }
+
+    if (!confirm(`Process ${selectedIds.length} selected reports with AI extraction? This will consume OpenAI credits.`)) {
+        return;
+    }
+
+    fetch('/api/queue/approve', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            item_ids: selectedIds
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Network error occurred');
+    });
+}
+
+function skipSelected() {
+    const selectedIds = getSelectedItemIds();
+    if (selectedIds.length === 0) {
+        alert('Please select at least one report to skip.');
+        return;
+    }
+
+    if (!confirm(`Skip ${selectedIds.length} selected reports? They will not be processed.`)) {
+        return;
+    }
+
+    fetch('/api/queue/skip', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            item_ids: selectedIds
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Network error occurred');
+    });
+}
+
+// Initialize count on page load
+document.addEventListener('DOMContentLoaded', function() {
+    updateSelectedCount();
+});
+</script>
+{% endblock %}

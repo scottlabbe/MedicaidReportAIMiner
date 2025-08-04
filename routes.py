@@ -969,7 +969,7 @@ def register_routes(app):
 
     @app.route('/api/queue/add', methods=['POST'])
     def add_to_scraping_queue():
-        """Add selected items to scraping queue."""
+        """Add selected items to scraping queue for review."""
         items = request.json.get('items', [])
         user_overrides = request.json.get('overrides', {})
         
@@ -979,10 +979,68 @@ def register_routes(app):
             
             return jsonify({
                 'success': True,
-                'added': added
+                'added': added,
+                'message': f'Added {added} reports to review queue'
             })
         except Exception as e:
             logging.error(f"Queue add error: {str(e)}")
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+
+    @app.route('/queue-review')
+    def queue_review():
+        """Page for reviewing queued items before processing."""
+        try:
+            service = AuditSearchService()
+            pending_items = service.get_pending_review_items()
+            
+            return render_template('queue_review.html', 
+                                pending_items=pending_items,
+                                total_pending=len(pending_items))
+        except Exception as e:
+            logging.error(f"Queue review error: {str(e)}")
+            flash('Error loading review queue', 'error')
+            return redirect(url_for('dashboard'))
+
+    @app.route('/api/queue/approve', methods=['POST'])
+    def approve_queue_items():
+        """Approve selected items for full AI processing."""
+        item_ids = request.json.get('item_ids', [])
+        
+        try:
+            service = AuditSearchService()
+            approved = service.approve_for_processing(item_ids)
+            
+            return jsonify({
+                'success': True,
+                'approved': approved,
+                'message': f'Approved {approved} reports for processing'
+            })
+        except Exception as e:
+            logging.error(f"Queue approval error: {str(e)}")
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+
+    @app.route('/api/queue/skip', methods=['POST'])
+    def skip_queue_items():
+        """Skip selected items (mark as skipped)."""
+        item_ids = request.json.get('item_ids', [])
+        
+        try:
+            service = AuditSearchService()
+            skipped = service.skip_items(item_ids)
+            
+            return jsonify({
+                'success': True,
+                'skipped': skipped,
+                'message': f'Skipped {skipped} reports'
+            })
+        except Exception as e:
+            logging.error(f"Queue skip error: {str(e)}")
             return jsonify({
                 'success': False,
                 'error': str(e)
@@ -1001,8 +1059,14 @@ def register_routes(app):
                 ScrapingQueue.created_at.desc()
             ).limit(10).all()
             
+            # Convert stats to dict and ensure all expected statuses are included
+            stats_dict = dict(stats)
+            for status in ['pending_review', 'pending', 'downloading', 'processing', 'completed', 'failed', 'duplicate', 'skipped']:
+                if status not in stats_dict:
+                    stats_dict[status] = 0
+            
             return jsonify({
-                'stats': dict(stats),
+                'stats': stats_dict,
                 'recent': [item.to_dict() for item in recent]
             })
         except Exception as e:

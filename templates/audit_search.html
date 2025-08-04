@@ -70,10 +70,20 @@
 <div class="container-fluid">
         <div class="row">
             <div class="col-12">
-                <h1 class="mb-4">
-                    <i class="fas fa-search"></i>
-                    Medicaid Audit Search & Queue Management
-                </h1>
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h1 class="mb-0">
+                        <i class="fas fa-search"></i>
+                        Medicaid Audit Search & Queue Management
+                    </h1>
+                    <div>
+                        <a href="{{ url_for('queue_review') }}" class="btn btn-outline-success me-2">
+                            <i class="fas fa-list-check"></i> Review Queue
+                        </a>
+                        <button type="button" class="btn btn-outline-primary" onclick="location.reload()">
+                            <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
+                    </div>
+                </div>
                 
                 <!-- Search Controls -->
                 <div class="card mb-4">
@@ -405,7 +415,7 @@
             .then(r => r.json())
             .then(data => {
                 if (data.success) {
-                    alert(`Added ${data.added} items to processing queue`);
+                    alert(data.message || `Added ${data.added} reports to review queue`);
                     updateQueueStatus();
                     executeSearch(); // Refresh to show updated statuses
                 } else {
@@ -428,8 +438,9 @@
                     if (data.stats) {
                         const stats = data.stats;
                         document.getElementById('queue-stats').innerHTML = `
-                            <span class="status-badge status-pending">Pending: ${stats.pending || 0}</span>
-                            <span class="status-badge status-processing">Processing: ${stats.downloading || 0}</span>
+                            <span class="status-badge status-pending">Pending Review: ${stats.pending_review || 0}</span>
+                            <span class="status-badge status-pending">Processing: ${stats.pending || 0}</span>
+                            <span class="status-badge status-processing">Downloading: ${stats.downloading || 0}</span>
                             <span class="status-badge status-completed">Completed: ${stats.completed || 0}</span>
                             <span class="status-badge status-failed">Failed: ${stats.failed || 0}</span>
                             <span class="status-badge status-duplicate">Duplicates: ${stats.duplicate || 0}</span>
