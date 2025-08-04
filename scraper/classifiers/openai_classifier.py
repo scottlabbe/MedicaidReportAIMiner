@@ -5,6 +5,7 @@ OpenAI-based document classifier for Medicaid audit detection.
 
 import os
 import json
+import httpx
 from typing import Optional
 from openai import OpenAI
 from rich.console import Console
@@ -27,7 +28,14 @@ class OpenAIClassifier(ClassifierInterface):
             self.client = None
         else:
             try:
-                self.client = OpenAI(api_key=self.api_key)
+                # Configure timeout to prevent SSL read timeouts
+                timeout = httpx.Timeout(
+                    120.0,        # Total timeout
+                    connect=10.0, # Connection timeout
+                    read=60.0,    # Read timeout (prevents SSL timeout)
+                    write=5.0     # Write timeout
+                )
+                self.client = OpenAI(api_key=self.api_key, timeout=timeout)
             except Exception as e:
                 console.print(f"[red]Failed to initialize OpenAI client: {e}[/red]")
                 self.client = None
