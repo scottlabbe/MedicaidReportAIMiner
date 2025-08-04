@@ -98,6 +98,38 @@ class MedicaidAuditSearcher:
     # Calculate date restriction
     date_restrict = f"d{days_back}" if days_back else None
     
+    return self._execute_search(query, date_restrict, max_results)
+   
+   def search_date_range(self, start_date: str, end_date: str, max_results: int = 50) -> List[Dict[str, Any]]:
+    """
+    Search for Medicaid audit PDFs within a specific date range.
+    
+    Args:
+        start_date: Start date in YYYY-MM-DD format
+        end_date: End date in YYYY-MM-DD format
+        max_results: Maximum number of results to return
+        
+    Returns:
+        List of search results with PDF information
+    """
+    query = self.build_query()
+    console.print(f"[bold blue]Search Query:[/bold blue] {query}")
+    console.print(f"[bold green]Date Range:[/bold green] {start_date} to {end_date}")
+    
+    # Google Custom Search uses dateRestrict parameter differently for date ranges
+    # Convert dates to the format Google expects (YYYYMMDD:YYYYMMDD)
+    try:
+        start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+        end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+        date_restrict = f"{start_dt.strftime('%Y%m%d')}:{end_dt.strftime('%Y%m%d')}"
+    except ValueError:
+        console.print("[red]Invalid date format. Expected YYYY-MM-DD[/red]")
+        return []
+    
+    return self._execute_search(query, date_restrict, max_results)
+   
+   def _execute_search(self, query: str, date_restrict: str | None = None, max_results: int = 50) -> List[Dict[str, Any]]:
+    """Execute the actual search with the given parameters."""
     results = []
     pdf_results = []
     
@@ -105,13 +137,17 @@ class MedicaidAuditSearcher:
         # Google CSE returns max 10 results per request
         # So we need to paginate for more results
         for start_index in range(1, min(max_results + 1, 101), 10):
-            request = self.service.cse().list(
-                q=query,
-                cx=self.cse_id,
-                dateRestrict=date_restrict,
-                start=start_index,
-                num=min(10, max_results - len(results))
-            )
+            search_params = {
+                'q': query,
+                'cx': self.cse_id,
+                'start': start_index,
+                'num': min(10, max_results - len(results))
+            }
+            
+            if date_restrict:
+                search_params['dateRestrict'] = date_restrict
+            
+            request = self.service.cse().list(**search_params)
             
             response = request.execute()
             

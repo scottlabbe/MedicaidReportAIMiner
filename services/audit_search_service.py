@@ -31,6 +31,25 @@ class AuditSearchService:
         
         return classified_results
     
+    def search_and_classify_date_range(self, start_date, end_date):
+        """Execute search with AI classification for specific date range."""
+        # Search with custom date range
+        results = self.searcher.search_date_range(start_date=start_date, end_date=end_date, max_results=50)
+        
+        # Classify
+        classified_results = self.classifier.classify_batch(results)
+        
+        # Check for duplicates
+        for result in classified_results:
+            result['is_duplicate'] = self._check_duplicate(result['url'])
+            if result['is_duplicate']:
+                result['duplicate_report'] = self._get_duplicate_info(result['url'])
+        
+        # Save search history with date range info
+        self._save_search_history_date_range(len(classified_results), start_date, end_date)
+        
+        return classified_results
+    
     def _check_duplicate(self, url):
         """Check if URL exists in reports or queue."""
         # Check main reports table
@@ -157,6 +176,15 @@ class AuditSearchService:
         """Save search to history."""
         history = SearchHistory(
             search_params={'days_back': days_back},
+            results_count=results_count
+        )
+        db.session.add(history)
+        db.session.commit()
+    
+    def _save_search_history_date_range(self, results_count, start_date, end_date):
+        """Save search to history with date range."""
+        history = SearchHistory(
+            search_params={'start_date': start_date, 'end_date': end_date},
             results_count=results_count
         )
         db.session.add(history)

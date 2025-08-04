@@ -940,11 +940,21 @@ def register_routes(app):
     @app.route('/api/audit-search', methods=['POST'])
     def execute_audit_search():
         """Execute search and return results."""
-        days_back = request.json.get('days_back', 30)
+        # Support both days_back and custom date range
+        days_back = request.json.get('days_back')
+        start_date = request.json.get('start_date')
+        end_date = request.json.get('end_date')
         
         try:
             service = AuditSearchService()
-            results = service.search_and_classify(days_back)
+            
+            if start_date and end_date:
+                # Custom date range search
+                results = service.search_and_classify_date_range(start_date, end_date)
+            else:
+                # Days back search (default behavior)
+                days_back = days_back or 30
+                results = service.search_and_classify(days_back)
             
             # Count classification errors
             classification_errors = len([r for r in results if not r.get('ai_classification', {}).get('success', True)])
