@@ -152,7 +152,10 @@
 </div>
 
 <script>
+let domReady = false;
+
 function selectAll() {
+    if (!domReady) return;
     document.querySelectorAll('.item-checkbox').forEach(checkbox => {
         checkbox.checked = true;
     });
@@ -160,6 +163,7 @@ function selectAll() {
 }
 
 function selectNone() {
+    if (!domReady) return;
     document.querySelectorAll('.item-checkbox').forEach(checkbox => {
         checkbox.checked = false;
     });
@@ -167,8 +171,12 @@ function selectNone() {
 }
 
 function updateSelectedCount() {
+    if (!domReady) return;
     const selected = document.querySelectorAll('.item-checkbox:checked').length;
-    document.getElementById('selectedCount').textContent = selected;
+    const countElement = document.getElementById('selectedCount');
+    if (countElement) {
+        countElement.textContent = selected;
+    }
 }
 
 function getSelectedItemIds() {
@@ -252,6 +260,7 @@ function skipSelected() {
 
 // Initialize count on page load
 document.addEventListener('DOMContentLoaded', function() {
+    domReady = true;
     updateSelectedCount();
 });
 </script>
