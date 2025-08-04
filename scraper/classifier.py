@@ -3,6 +3,7 @@
 AI-powered classification of search results to identify legitimate Medicaid audit documents.
 """
 import yaml
+import time
 from typing import Dict, List, Any
 from rich.console import Console
 from dotenv import load_dotenv
@@ -29,6 +30,8 @@ class MedicaidAuditClassifier:
         self.model = classifier_config.get('model', 'gpt-4.1-nano')
         self.show_errors = classifier_config.get('show_errors', True)
         self.retry_attempts = classifier_config.get('retry_attempts', 2)
+        self.batch_size = classifier_config.get('batch_size', 5)
+        self.batch_delay = classifier_config.get('batch_delay', 0.5)
         
         # Initialize the selected classifier
         self.classifier = self._create_classifier()
@@ -125,7 +128,7 @@ class MedicaidAuditClassifier:
 
     def classify_batch(self, search_results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
-        Classify multiple search results using summary data.
+        Classify multiple search results in batches to avoid timeouts.
         
         Args:
             search_results: List of search result dicts
@@ -134,22 +137,58 @@ class MedicaidAuditClassifier:
             Same list with 'ai_classification' field added to each result
         """
         classified_results = []
+        total = len(search_results)
         
-        console.print(f"\n[bold cyan]Classifying {len(search_results)} results with Gemini AI...[/bold cyan]")
+        console.print(f"\n[bold cyan]Classifying {total} results with {self.classifier.get_provider_name()} AI...[/bold cyan]")
+        console.print(f"[dim]Processing in batches of {self.batch_size} to prevent timeouts[/dim]")
         
-        for idx, result in enumerate(search_results):
-            console.print(f"  Analyzing [{idx + 1}/{len(search_results)}]: {result['title'][:50]}...")
+        for i in range(0, total, self.batch_size):
+            batch = search_results[i:i + self.batch_size]
+            batch_end = min(i + self.batch_size, total)
             
-            # Use the new classification method
-            classification = self.classify_document(
-                title=result.get('title', ''),
-                snippet=result.get('snippet', ''),
-                url=result.get('url', '')
-            )
+            console.print(f"  [bold]Processing batch [{i+1}-{batch_end}/{total}]...[/bold]")
             
-            # Add classification with specific field name
-            result_copy = result.copy()
-            result_copy['ai_classification'] = classification
-            classified_results.append(result_copy)
+            for idx, result in enumerate(batch):
+                item_number = i + idx + 1
+                console.print(f"    Analyzing [{item_number}/{total}]: {result['title'][:50]}...")
+                
+                try:
+                    # Use the new classification method
+                    classification = self.classify_document(
+                        title=result.get('title', ''),
+                        snippet=result.get('snippet', ''),
+                        url=result.get('url', '')
+                    )
+                    
+                    result_copy = result.copy()
+                    result_copy['ai_classification'] = classification
+                    classified_results.append(result_copy)
+                    
+                except Exception as e:
+                    console.print(f"    [red]Failed to classify: {result.get('title', 'Unknown')[:30]}...[/red]")
+                    console.print(f"    [red]Error: {str(e)}[/red]")
+                    
+                    # Add failed classification
+                    result_copy = result.copy()
+                    result_copy['ai_classification'] = {
+                        "is_medicaid_audit": False,
+                        "confidence": 0.0,
+                        "document_type": "unknown",
+                        "reasoning": f"Classification failed: {str(e)}",
+                        "success": False,
+                        "error": str(e),
+                        "provider": self.classifier.get_provider_name()
+                    }
+                    classified_results.append(result_copy)
+            
+            # Add delay between batches to avoid rate limits
+            if i + self.batch_size < total:
+                console.print(f"    [dim]Waiting {self.batch_delay}s before next batch...[/dim]")
+                time.sleep(self.batch_delay)
+        
+        # Summary
+        successful = len([r for r in classified_results if r.get('ai_classification', {}).get('success', True)])
+        failed = total - successful
+        console.print(f"[bold green]Batch classification complete: {successful} successful, {failed} failed[/bold green]")
         
         return classified_results

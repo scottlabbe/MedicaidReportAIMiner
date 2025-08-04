@@ -51,3 +51,5 @@ classifier:
   model: "gpt-4.1-nano"  # Using existing GPT nano model from ai_extraction.py
   show_errors: true
   retry_attempts: 2
+  batch_size: 5         # Number of items to process per batch
+  batch_delay: 0.5      # Seconds to wait between batches
