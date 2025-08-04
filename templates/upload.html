@@ -39,6 +39,11 @@
                 <h5 class="mb-0">Upload Audit Report PDFs</h5>
             </div>
             <div class="card-body">
+                <div class="alert alert-info mb-4">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>New Unified Workflow:</strong> Uploaded files now join the Review Queue alongside discovered reports. 
+                    This gives you cost control by letting you approve files before AI processing.
+                </div>
                 <form action="{{ url_for('upload') }}" method="POST" enctype="multipart/form-data" id="uploadForm">
                     <div class="mb-4">
                         <div class="drop-zone" id="dropZone">
@@ -66,7 +71,7 @@
                     
                     <div class="d-grid gap-2">
                         <button type="submit" class="btn btn-primary" id="uploadButton" disabled>
-                            <i class="fas fa-cloud-upload-alt me-1"></i> Process Selected Files
+                            <i class="fas fa-cloud-upload-alt me-1"></i> Add Files to Review Queue
                         </button>
                     </div>
                 </form>

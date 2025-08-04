@@ -85,7 +85,11 @@
                             <div class="card-body">
                                 <div class="mb-2">
                                     <small class="text-muted">
-                                        <i class="fas fa-globe"></i> {{ item.source_domain }}
+                                        {% if item.source_domain == "manual_upload" %}
+                                            <i class="fas fa-upload"></i> Manually Uploaded
+                                        {% else %}
+                                            <i class="fas fa-globe"></i> {{ item.source_domain }}
+                                        {% endif %}
                                     </small>
                                 </div>
 
@@ -124,9 +128,15 @@
                                 </div>
 
                                 <div class="d-grid gap-2">
-                                    <a href="{{ item.url }}" target="_blank" class="btn btn-outline-primary btn-sm">
-                                        <i class="fas fa-external-link-alt"></i> View Original PDF
-                                    </a>
+                                    {% if item.source_domain == "manual_upload" %}
+                                        <button class="btn btn-outline-secondary btn-sm" disabled>
+                                            <i class="fas fa-file-pdf"></i> Uploaded File
+                                        </button>
+                                    {% else %}
+                                        <a href="{{ item.url }}" target="_blank" class="btn btn-outline-primary btn-sm">
+                                            <i class="fas fa-external-link-alt"></i> View Original PDF
+                                        </a>
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>

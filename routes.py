@@ -107,7 +107,7 @@ def register_routes(app):
                     # Process the file in memory without saving to disk
                     filename, file_size, file_hash, file_content = process_uploaded_file_memory(file)
                     
-                    # Check for duplicates
+                    # Check for duplicates in both existing reports and queue
                     is_duplicate, existing_report, reason = check_duplicate_report(file_hash, filename)
                     
                     if is_duplicate:
@@ -128,53 +128,51 @@ def register_routes(app):
                             })
                         continue
                     
-                    # Create a BytesIO object from file content
-                    pdf_io = io.BytesIO(file_content)
+                    # Check for duplicates in the queue (by URL which we'll use as file hash for uploads)
+                    upload_url = f"upload://{file_hash}"  # Create unique identifier for uploads
+                    existing_queue_item = ScrapingQueue.query.filter_by(url=upload_url).first()
                     
-                    # Extract text from PDF in memory
-                    pdf_text = extract_text_from_pdf_memory(pdf_io)
-                    
-                    # Extract keywords from PDF metadata in memory
-                    pdf_metadata_keywords = extract_keywords_from_pdf_metadata_memory(pdf_io)
-                    
-                    # Use AI model to extract data
-                    if ai_model == 'openai':
-                        api_key = app.config.get('OPENAI_API_KEY')
-                        if not api_key:
-                            raise ValueError("OpenAI API key not configured")
-                        
-                        # Extract data and get AI log
-                        report_data, ai_log = extract_data_with_openai(pdf_text, api_key)
-                        
-                        # Combine and deduplicate keywords from PDF metadata and AI extraction
-                        combined_keywords = process_keywords(pdf_metadata_keywords, report_data.extracted_keywords)
-                        
-                        # Update the report data with combined keywords
-                        report_data_dict = report_data.dict()
-                        report_data_dict['extracted_keywords'] = combined_keywords
-                        
-                        # Create file metadata tuple for in-memory processing
-                        # (filename, file_size, file_hash) - no file path needed
-                        file_metadata = (filename, file_size, file_hash)
-                        
-                        # Redirect to review page with extraction ID
+                    if existing_queue_item:
                         upload_results.append({
                             'filename': file.filename,
-                            'status': 'success',
-                            'message': 'Processing completed successfully',
-                            'temp_id': file_hash,  # Use file hash as a temporary ID for now
-                            'report_data': report_data_dict,
-                            'ai_log': ai_log.dict(),
-                            'pdf_metadata_keywords': pdf_metadata_keywords,
-                            'file_metadata': file_metadata
+                            'status': 'duplicate',
+                            'message': f'File already in queue (ID: {existing_queue_item.id})',
+                            'queue_id': existing_queue_item.id
                         })
-                        
-                    else:
-                        upload_results.append({
-                            'filename': file.filename,
-                            'status': 'error',
-                            'message': f'Unsupported AI model: {ai_model}'
-                        })
+                        continue
+                    
+                    # Create queue item for uploaded file
+                    queue_item = ScrapingQueue(
+                        url=upload_url,
+                        title=filename,
+                        source_domain="manual_upload",
+                        document_metadata={
+                            'filename': filename,
+                            'file_size': file_size,
+                            'file_hash': file_hash,
+                            'upload_source': 'manual_upload',
+                            'original_filename': file.filename,
+                            'file_content': file_content.hex()  # Store as hex string
+                        },
+                        ai_classification={
+                            'is_medicaid_audit': True,  # User-selected, assume it's an audit
+                            'confidence': 1.0,
+                            'source': 'manual_upload',
+                            'reasoning': 'File manually uploaded by user'
+                        },
+                        status='pending_review',  # Goes to review queue
+                        user_override=True  # Mark as user-vetted
+                    )
+                    
+                    db.session.add(queue_item)
+                    db.session.commit()
+                    
+                    upload_results.append({
+                        'filename': file.filename,
+                        'status': 'queued',
+                        'message': 'File added to review queue successfully',
+                        'queue_id': queue_item.id
+                    })
                 
                 except Exception as e:
                     logging.error(f"Error processing file {file.filename}: {e}")
@@ -184,30 +182,28 @@ def register_routes(app):
                         'message': str(e)
                     })
             
-            # Store processing results in session for review
-            if any(result['status'] == 'success' for result in upload_results):
-                # Save successful extractions to session for review
-                success_results = [result for result in upload_results if result['status'] == 'success']
-                
-                if len(success_results) == 1:
-                    # If only one file was successfully processed, redirect to review page
-                    result = success_results[0]
-                    # Store data in session
-                    temp_id = result['temp_id']
-                    app.config[f'temp_extraction_{temp_id}'] = {
-                        'report_data': result['report_data'],
-                        'ai_log': result['ai_log'],
-                        'file_metadata': result['file_metadata']
-                    }
-                    return redirect(url_for('review', temp_id=temp_id))
-                else:
-                    # If multiple files were processed, show summary
-                    flash(f'Processed {len(success_results)} files successfully', 'success')
-                    return render_template('upload.html', results=upload_results)
+            # Handle upload results
+            queued_count = len([r for r in upload_results if r['status'] == 'queued'])
+            duplicate_count = len([r for r in upload_results if r['status'] == 'duplicate'])
+            error_count = len([r for r in upload_results if r['status'] == 'error'])
             
-            # If no files were processed successfully
-            flash('No files were processed successfully', 'warning')
-            return render_template('upload.html', results=upload_results)
+            if queued_count > 0:
+                flash(f'Successfully added {queued_count} file{"s" if queued_count != 1 else ""} to review queue', 'success')
+                if duplicate_count > 0:
+                    flash(f'{duplicate_count} duplicate file{"s" if duplicate_count != 1 else ""} skipped', 'info')
+                if error_count > 0:
+                    flash(f'{error_count} file{"s" if error_count != 1 else ""} had errors', 'warning')
+                
+                # Redirect to review queue to see uploaded files
+                return redirect(url_for('queue_review'))
+            else:
+                # No files queued - show results with errors/duplicates
+                if duplicate_count > 0:
+                    flash(f'All {duplicate_count} file{"s" if duplicate_count != 1 else ""} were duplicates', 'info')
+                if error_count > 0:
+                    flash(f'All {error_count} file{"s" if error_count != 1 else ""} had errors', 'danger')
+                
+                return render_template('upload.html', results=upload_results)
         
         # GET request - show upload form
         return render_template('upload.html')

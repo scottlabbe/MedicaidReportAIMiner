@@ -37,16 +37,35 @@ class QueueProcessor:
     def _process_item(self, item):
         """Process a single queue item."""
         try:
-            # Update status
-            item.status = 'downloading'
-            db.session.commit()
+            # Check if this is an uploaded file or a URL to download
+            is_upload = item.source_domain == "manual_upload"
             
-            # Download PDF
-            response = requests.get(item.url, timeout=30)
-            response.raise_for_status()
-            
-            # Calculate hash
-            file_hash = hashlib.sha256(response.content).hexdigest()
+            if is_upload:
+                # Update status for uploaded file
+                item.status = 'processing'
+                db.session.commit()
+                
+                # Extract file content from metadata
+                file_content_hex = item.document_metadata.get('file_content')
+                if not file_content_hex:
+                    raise ValueError("No file content found in uploaded item metadata")
+                
+                # Convert hex string back to bytes
+                pdf_content = bytes.fromhex(file_content_hex)
+                file_hash = item.document_metadata.get('file_hash')
+                
+            else:
+                # Update status for URL download
+                item.status = 'downloading'
+                db.session.commit()
+                
+                # Download PDF from URL
+                response = requests.get(item.url, timeout=30)
+                response.raise_for_status()
+                
+                pdf_content = response.content
+                # Calculate hash
+                file_hash = hashlib.sha256(pdf_content).hexdigest()
             
             # Check if duplicate by hash
             existing = db.session.query(Report).filter_by(
@@ -64,7 +83,7 @@ class QueueProcessor:
                 db.session.add(dup_check)
             else:
                 # Process through existing pipeline
-                report = self._create_report(item, response.content)
+                report = self._create_report(item, pdf_content, is_upload)
                 if report:
                     item.status = 'completed'
                     item.report_id = report.id
@@ -85,8 +104,8 @@ class QueueProcessor:
             item.completed_at = datetime.utcnow()
             db.session.commit()
     
-    def _create_report(self, queue_item, pdf_content):
-        """Create a new report from downloaded PDF content."""
+    def _create_report(self, queue_item, pdf_content, is_upload=False):
+        """Create a new report from PDF content (downloaded or uploaded)."""
         try:
             # Create BytesIO object for PDF processing
             pdf_io = io.BytesIO(pdf_content)
@@ -106,6 +125,14 @@ class QueueProcessor:
             report_data, ai_log = extract_data_with_openai(extracted_text, api_key)
             
             # Create report object
+            # Get the appropriate filename and URL based on source
+            if is_upload:
+                original_filename = queue_item.document_metadata.get('original_filename', queue_item.title)
+                source_url = f"Manual Upload: {original_filename}"
+            else:
+                original_filename = queue_item.title + '.pdf'
+                source_url = queue_item.url
+            
             report = Report(
                 report_title=report_data.report_title,
                 audit_organization=report_data.audit_organization,
@@ -115,10 +142,10 @@ class QueueProcessor:
                 overall_conclusion=report_data.overall_conclusion,
                 llm_insight=report_data.llm_insight,
                 potential_objective_summary=report_data.potential_objective_summary,
-                original_report_source_url=queue_item.url,
+                original_report_source_url=source_url,
                 state=report_data.state,
                 audit_scope=report_data.audit_scope,
-                original_filename=queue_item.title + '.pdf',
+                original_filename=original_filename,
                 file_hash=file_hash,
                 file_size_bytes=len(pdf_content),
                 status='completed',
