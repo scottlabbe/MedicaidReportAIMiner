@@ -5,6 +5,9 @@ search:
       - gao.gov
       - cms.gov
       - medicaid.gov
+      - oig.treasury.gov
+      - oig.justice.gov
+      - recovery.gov
     state:
       - auditor.illinois.gov
       - auditor.ca.gov
@@ -12,35 +15,31 @@ search:
       - auditor.mo.gov
       - audits.ga.gov
       - sao.wa.gov
-      - auditor.nebraska.gov
-      - osa.state.ms.us
-      - auditor.state.oh.us
+      - auditors.nebraska.gov
+      - osa.ms.gov
+      - auditor.ohio.gov
       - oag.state.ny.us
-    # Additional sites for broader coverage
-    extended:
-      - oig.treasury.gov
-      - oig.justice.gov
-      - recovery.gov
       - osa.georgia.gov
-      - auditors.ohio.gov
-      - osa.state.la.us
-      - osa.arkansas.gov
-      - sao.state.ia.us
+      - lla.la.gov
+      - auditor.ar.gov
+      - auditor.iowa.gov
       - auditor.utah.gov
-      - osa.state.ok.us
+      - sai.ok.gov
       - osa.ks.gov
-      - auditor.sd.gov
-      - sao.nd.gov
-      - auditor.mt.gov
-      - auditor.wy.gov
-      - auditor.co.gov
-      - auditor.nm.gov
+      - sdauditor.sd.gov
+      - nd.gov/auditor 
+      - csimt.gov
+      - sao.wyo.gov
+      - leg.colorado.gov/agencies/office-of-the-state-auditor
+      - osa.nm.gov
       - azauditor.gov
-      - auditor.nv.gov
+      - leg.state.nv.us/division/audit/
       - auditor.idaho.gov
       - sos.oregon.gov
-      - auditor.alaska.gov
+      - legaudit.akleg.gov
       - auditor.hawaii.gov
+      - legislature.idaho.gov/lso/audit/
+
 
 
   output:
