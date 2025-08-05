@@ -1,45 +1,39 @@
-search:
+  search:
   audit_sites:
     federal:
       - oig.hhs.gov
       - gao.gov
       - cms.gov
       - medicaid.gov
-      - oig.treasury.gov
-      - oig.justice.gov
-      - recovery.gov
     state:
+      # Verified working sites
       - auditor.illinois.gov
       - auditor.ca.gov
       - sao.texas.gov
       - auditor.mo.gov
-      - audits.ga.gov
       - sao.wa.gov
-      - auditors.nebraska.gov
-      - osa.ms.gov
-      - auditor.ohio.gov
-      - oag.state.ny.us
-      - osa.georgia.gov
+      - auditor.nebraska.gov
+      - osa.state.ms.us
+      - ohioauditor.gov
+      - osc.state.ny.us
       - lla.la.gov
-      - auditor.ar.gov
+      - arklegaudit.gov
       - auditor.iowa.gov
       - auditor.utah.gov
       - sai.ok.gov
-      - osa.ks.gov
-      - sdauditor.sd.gov
-      - nd.gov/auditor 
-      - csimt.gov
+      - kslpa.ks.gov
+      - auditor.sd.gov
+      - ndauditor.gov
+      - leg.mt.gov
       - sao.wyo.gov
-      - leg.colorado.gov/agencies/office-of-the-state-auditor
-      - osa.nm.gov
+      - leg.colorado.gov
+      - saonm.org
       - azauditor.gov
-      - leg.state.nv.us/division/audit/
-      - auditor.idaho.gov
+      - leg.state.nv.us
+      - legislature.idaho.gov
       - sos.oregon.gov
-      - legaudit.akleg.gov
+      - akleg.gov
       - auditor.hawaii.gov
-      - legislature.idaho.gov/lso/audit/
-
 
 
   output:
