@@ -95,26 +95,16 @@
                     </div>
                     <div class="card-body">
                         <div class="row align-items-end">
-                            <div class="col-md-2">
+                            <div class="col-md-3">
                                 <label for="timeframe" class="form-label">Time Period:</label>
-                                <select id="timeframe" class="form-select" onchange="toggleCustomDates()">
+                                <select id="timeframe" class="form-select">
                                     <option value="7">Last 7 Days</option>
                                     <option value="30" selected>Last 30 Days</option>
-                                    <option value="90">Last Quarter</option>
-                                    <option value="custom">Custom Range</option>
+                                    <option value="90">Last 90 Days</option>
+                                    <option value="180">Last 6 Months</option>
+                                    <option value="365">Last Year</option>
                                 </select>
-                            </div>
-                            <div class="col-md-4" id="custom-date-range" style="display: none;">
-                                <div class="row">
-                                    <div class="col-6">
-                                        <label for="start-date" class="form-label">Start Date:</label>
-                                        <input type="date" id="start-date" class="form-control" />
-                                    </div>
-                                    <div class="col-6">
-                                        <label for="end-date" class="form-label">End Date:</label>
-                                        <input type="date" id="end-date" class="form-control" />
-                                    </div>
-                                </div>
+                                <small class="text-muted">Google Search API limitation: only relative dates supported</small>
                             </div>
                             <div class="col-md-3">
                                 <button onclick="executeSearch()" class="btn btn-primary" id="search-btn">
@@ -239,52 +229,14 @@
         let searchResults = [];
         let userOverrides = {};
         
-        function toggleCustomDates() {
-            const timeframe = document.getElementById('timeframe').value;
-            const customRange = document.getElementById('custom-date-range');
-            
-            if (timeframe === 'custom') {
-                customRange.style.display = 'block';
-                // Set default end date to today
-                document.getElementById('end-date').value = new Date().toISOString().split('T')[0];
-                // Set default start date to 30 days ago
-                const startDate = new Date();
-                startDate.setDate(startDate.getDate() - 30);
-                document.getElementById('start-date').value = startDate.toISOString().split('T')[0];
-            } else {
-                customRange.style.display = 'none';
-            }
-        }
-        
         function executeSearch() {
             const timeframe = document.getElementById('timeframe').value;
             const searchBtn = document.getElementById('search-btn');
             
-            let searchParams = {};
-            
-            if (timeframe === 'custom') {
-                const startDate = document.getElementById('start-date').value;
-                const endDate = document.getElementById('end-date').value;
-                
-                if (!startDate || !endDate) {
-                    alert('Please select both start and end dates for custom range');
-                    return;
-                }
-                
-                if (new Date(startDate) > new Date(endDate)) {
-                    alert('Start date must be before end date');
-                    return;
-                }
-                
-                searchParams = {
-                    start_date: startDate,
-                    end_date: endDate
-                };
-            } else {
-                searchParams = {
-                    days_back: parseInt(timeframe)
-                };
-            }
+            // Only support days_back since Google CSE doesn't support absolute date ranges
+            const searchParams = {
+                days_back: parseInt(timeframe)
+            };
             
             searchBtn.classList.add('loading');
             
