@@ -39,16 +39,24 @@ class MedicaidAuditSearcher:
    
    def build_query(self, use_extended: bool = False) -> str:
     """Build query using sites from config file."""
-    # Get audit sites from config - prioritize the working sites first
-    federal_sites = self.config.get('search', {}).get('audit_sites', {}).get('federal', [])
-    state_sites = self.config.get('search', {}).get('audit_sites', {}).get('state', [])
+    # Get audit sites from config - with defensive error handling
+    search_config = self.config.get('search', {})
+    if search_config is None:
+        search_config = {}
+    
+    audit_sites = search_config.get('audit_sites', {})
+    if audit_sites is None:
+        audit_sites = {}
+    
+    federal_sites = audit_sites.get('federal', []) or []
+    state_sites = audit_sites.get('state', []) or []
     
     # Combine primary sites
     all_sites = federal_sites + state_sites
     
     # Optionally add extended sites for broader coverage
     if use_extended:
-        extended_sites = self.config.get('search', {}).get('audit_sites', {}).get('extended', [])
+        extended_sites = audit_sites.get('extended', []) or []
         all_sites.extend(extended_sites)
     
     # Build site: operators
