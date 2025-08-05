@@ -91,29 +91,10 @@ class MedicaidAuditSearcher:
    
    def search(self, days_back: int = 30, max_results: int = 50) -> List[Dict[str, Any]]:
     """
-    Search for Medicaid audit PDFs.
+    Search for Medicaid audit PDFs from the last N days.
     
     Args:
-        days_back: Number of days to search back from today
-        max_results: Maximum number of results to return
-        
-    Returns:
-        List of search results with PDF information
-    """
-    query = self.build_query()
-    console.print(f"[bold blue]Search Query:[/bold blue] {query}")
-    
-    # Calculate date restriction
-    date_restrict = f"d{days_back}" if days_back else None
-    
-    return self._execute_search(query, date_restrict, max_results)
-   
-   def search_by_days_back(self, days_back: int, max_results: int = 50) -> List[Dict[str, Any]]:
-    """
-    Search for Medicaid audit PDFs from the specified number of days back.
-    
-    Args:
-        days_back: Number of days back to search (e.g., 7, 30, 90, 365)
+        days_back: Number of days to search back from today (e.g., 7, 30, 90, 365)
         max_results: Maximum number of results to return
         
     Returns:

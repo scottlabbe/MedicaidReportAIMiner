@@ -31,24 +31,7 @@ class AuditSearchService:
         
         return classified_results
     
-    def search_and_classify_by_days(self, days_back):
-        """Execute search with AI classification for specified number of days back."""
-        # Search with days back (the only method that actually works with Google CSE)
-        results = self.searcher.search_by_days_back(days_back=days_back, max_results=50)
-        
-        # Classify
-        classified_results = self.classifier.classify_batch(results)
-        
-        # Check for duplicates
-        for result in classified_results:
-            result['is_duplicate'] = self._check_duplicate(result['url'])
-            if result['is_duplicate']:
-                result['duplicate_report'] = self._get_duplicate_info(result['url'])
-        
-        # Save search history
-        self._save_search_history(len(classified_results), days_back)
-        
-        return classified_results
+
     
     def _check_duplicate(self, url):
         """Check if URL exists in reports or queue."""

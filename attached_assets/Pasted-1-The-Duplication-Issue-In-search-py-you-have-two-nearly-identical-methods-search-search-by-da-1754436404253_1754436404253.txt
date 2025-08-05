@@ -1,0 +1,70 @@
+1. The Duplication Issue
+In search.py, you have two nearly identical methods:
+
+search()
+search_by_days_back()
+
+Both methods do essentially the same thing - they call _execute_search() with a date restriction. The only difference is that search() has a conditional date restriction while search_by_days_back() always applies it.
+2. The Real Problem: Method Mismatch
+Looking at audit_search_service.py:
+python# Line 16-29: This method calls searcher.search()
+def search_and_classify(self, days_back=30):
+    results = self.searcher.search(days_back=days_back, max_results=50)
+    # ...
+
+# Line 31-47: This method calls searcher.search_by_days_back()  
+def search_and_classify_by_days(self, days_back):
+    results = self.searcher.search_by_days_back(days_back=days_back, max_results=50)
+    # ...
+But in routes.py, you're only calling:
+python# Line 1564
+results = service.search_and_classify(days_back)
+So search_and_classify_by_days() appears to be unused!
+3. How It Currently Flows
+User clicks "Execute Search" in audit_search.html
+    ↓
+JavaScript executeSearch() 
+    ↓
+POST /api/audit-search with days_back parameter
+    ↓
+routes.py: execute_audit_search()
+    ↓
+AuditSearchService.search_and_classify(days_back)
+    ↓
+MedicaidAuditSearcher.search(days_back, max_results)
+    ↓
+Results returned and displayed
+Recommended Fix
+Consolidate to a single, clear search method:
+python# In search.py - Keep only one method:
+class MedicaidAuditSearcher:
+    def search(self, days_back: int = 30, max_results: int = 50) -> List[Dict[str, Any]]:
+        """
+        Search for Medicaid audit PDFs from the last N days.
+        
+        Args:
+            days_back: Number of days to search back from today
+            max_results: Maximum number of results to return
+            
+        Returns:
+            List of search results with PDF information
+        """
+        query = self.build_query()
+        console.print(f"[bold blue]Search Query:[/bold blue] {query}")
+        console.print(f"[bold green]Date Filter:[/bold green] Last {days_back} days")
+        
+        # Google CSE only supports relative date restrictions
+        date_restrict = f"d{days_back}"
+        
+        return self._execute_search(query, date_restrict, max_results)
+    
+    # DELETE search_by_days_back() - it's redundant
+python# In audit_search_service.py - Keep only one method:
+class AuditSearchService:
+    def search_and_classify(self, days_back=30):
+        """Execute search with AI classification."""
+        # This is your main method
+        results = self.searcher.search(days_back=days_back, max_results=50)
+        # ... rest of the classification logic
+        
+    # DELETE search_and_classify_by_days() - it's redundant
