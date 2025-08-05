@@ -68,9 +68,9 @@ class MedicaidAuditSearcher:
        url_lower = result['url'].lower()
        snippet_lower = result.get('snippet', '').lower()
        
-       # Must mention medicaid somewhere
-       if not any('medicaid' in text for text in [title_lower, url_lower, snippet_lower]):
-           return False
+       # TEMPORARILY DISABLED: Must mention medicaid somewhere
+       # if not any('medicaid' in text for text in [title_lower, url_lower, snippet_lower]):
+       #     return False
        
        # Exclude obvious non-audits
        exclude_terms = ['manual', 'guide', 'form', 'application', 'faq', 
@@ -78,7 +78,7 @@ class MedicaidAuditSearcher:
        if any(term in title_lower for term in exclude_terms):
            return False
        
-       # Accept if from .gov and mentions Medicaid
+       # Accept if from .gov (Medicaid filter temporarily disabled)
        return True
    
    def search(self, days_back: int = 30, max_results: int = 50) -> List[Dict[str, Any]]:
