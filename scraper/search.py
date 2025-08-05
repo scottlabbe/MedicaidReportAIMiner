@@ -100,13 +100,12 @@ class MedicaidAuditSearcher:
     
     return self._execute_search(query, date_restrict, max_results)
    
-   def search_date_range(self, start_date: str, end_date: str, max_results: int = 50) -> List[Dict[str, Any]]:
+   def search_by_days_back(self, days_back: int, max_results: int = 50) -> List[Dict[str, Any]]:
     """
-    Search for Medicaid audit PDFs within a specific date range.
+    Search for Medicaid audit PDFs from the specified number of days back.
     
     Args:
-        start_date: Start date in YYYY-MM-DD format
-        end_date: End date in YYYY-MM-DD format
+        days_back: Number of days back to search (e.g., 7, 30, 90, 365)
         max_results: Maximum number of results to return
         
     Returns:
@@ -114,17 +113,11 @@ class MedicaidAuditSearcher:
     """
     query = self.build_query()
     console.print(f"[bold blue]Search Query:[/bold blue] {query}")
-    console.print(f"[bold green]Date Range:[/bold green] {start_date} to {end_date}")
+    console.print(f"[bold green]Date Filter:[/bold green] Last {days_back} days")
     
-    # Google Custom Search uses dateRestrict parameter differently for date ranges
-    # Convert dates to the format Google expects (YYYYMMDD:YYYYMMDD)
-    try:
-        start_dt = datetime.strptime(start_date, "%Y-%m-%d")
-        end_dt = datetime.strptime(end_date, "%Y-%m-%d")
-        date_restrict = f"{start_dt.strftime('%Y%m%d')}:{end_dt.strftime('%Y%m%d')}"
-    except ValueError:
-        console.print("[red]Invalid date format. Expected YYYY-MM-DD[/red]")
-        return []
+    # Google Custom Search only supports relative date restrictions
+    # Format: d[number] for days, w[number] for weeks, m[number] for months, y[number] for years
+    date_restrict = f"d{days_back}"
     
     return self._execute_search(query, date_restrict, max_results)
    

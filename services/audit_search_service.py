@@ -31,10 +31,10 @@ class AuditSearchService:
         
         return classified_results
     
-    def search_and_classify_date_range(self, start_date, end_date):
-        """Execute search with AI classification for specific date range."""
-        # Search with custom date range
-        results = self.searcher.search_date_range(start_date=start_date, end_date=end_date, max_results=50)
+    def search_and_classify_by_days(self, days_back):
+        """Execute search with AI classification for specified number of days back."""
+        # Search with days back (the only method that actually works with Google CSE)
+        results = self.searcher.search_by_days_back(days_back=days_back, max_results=50)
         
         # Classify
         classified_results = self.classifier.classify_batch(results)
@@ -45,8 +45,8 @@ class AuditSearchService:
             if result['is_duplicate']:
                 result['duplicate_report'] = self._get_duplicate_info(result['url'])
         
-        # Save search history with date range info
-        self._save_search_history_date_range(len(classified_results), start_date, end_date)
+        # Save search history
+        self._save_search_history(len(classified_results), days_back)
         
         return classified_results
     
@@ -181,11 +181,3 @@ class AuditSearchService:
         db.session.add(history)
         db.session.commit()
     
-    def _save_search_history_date_range(self, results_count, start_date, end_date):
-        """Save search to history with date range."""
-        history = SearchHistory(
-            search_params={'start_date': start_date, 'end_date': end_date},
-            results_count=results_count
-        )
-        db.session.add(history)
-        db.session.commit()
