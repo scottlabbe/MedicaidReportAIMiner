@@ -35,6 +35,7 @@ class Report(db.Model):
     pdf_storage_path = Column(String(255), nullable=True, default="")
     file_size_bytes = Column(Integer, nullable=False)
     featured = Column(Boolean, default=False)
+    hidden = Column(Boolean, default=False, nullable=False)
     status = Column(String(50), default='processing')
     processing_status = Column(String(50), default='pending')
     error_message = Column(Text)

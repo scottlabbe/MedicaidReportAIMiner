@@ -35,7 +35,7 @@ class AuditSearchService:
     
     def _check_duplicate(self, url):
         """Check if URL exists in reports or queue."""
-        # Check main reports table
+        # Check main reports table (including hidden reports)
         existing_report = db.session.query(Report).filter_by(
             original_report_source_url=url
         ).first()
@@ -63,7 +63,9 @@ class AuditSearchService:
                 'id': existing_report.id,
                 'title': existing_report.report_title,
                 'year': existing_report.publication_year,
-                'month': existing_report.publication_month
+                'month': existing_report.publication_month,
+                'hidden': existing_report.hidden,
+                'status': 'hidden' if existing_report.hidden else 'visible'
             }
         return None
     

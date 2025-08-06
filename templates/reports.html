@@ -1,9 +1,5 @@
 {% extends "layout.html" %}
 
-{% block head_content %}
-<title>Reports - Medicaid Audit Report Analyzer</title>
-{% endblock %}
-
 {% block content %}
 <div class="row">
     <div class="col-12">
@@ -34,11 +30,21 @@
                     <table class="table table-hover">
                         <thead>
                             <tr>
-                                <th>Title</th>
-                                <th>Organization</th>
-                                <th>State</th>
-                                <th>Publication Date</th>
-                                <th>Featured</th>
+                                <th class="sortable" data-sort="title">
+                                    Title <i class="fas fa-sort sort-icon"></i>
+                                </th>
+                                <th class="sortable" data-sort="organization">
+                                    Organization <i class="fas fa-sort sort-icon"></i>
+                                </th>
+                                <th class="sortable" data-sort="state">
+                                    State <i class="fas fa-sort sort-icon"></i>
+                                </th>
+                                <th class="sortable" data-sort="publication_date">
+                                    Publication Date <i class="fas fa-sort sort-icon"></i>
+                                </th>
+                                <th class="sortable" data-sort="featured">
+                                    Featured <i class="fas fa-sort sort-icon"></i>
+                                </th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -54,7 +60,15 @@
                                     <span class="text-muted">N/A</span>
                                     {% endif %}
                                 </td>
-                                <td>{{ report.publication_month }}/{{ report.publication_day|default('--') }}/{{ report.publication_year }}</td>
+                                <td>
+                                    {% if report.publication_month and report.publication_year %}
+                                        {{ report.publication_month }}/{{ report.publication_year }}
+                                    {% elif report.publication_year %}
+                                        {{ report.publication_year }}
+                                    {% else %}
+                                        <span class="text-muted">N/A</span>
+                                    {% endif %}
+                                </td>
                                 <td>
                                     <div class="form-check form-switch">
                                         <input class="form-check-input featured-toggle" type="checkbox" role="switch" 
@@ -70,7 +84,9 @@
                                         <a href="{{ url_for('report_edit', report_id=report.id) }}" class="btn btn-sm btn-outline-secondary">
                                             <i class="fas fa-edit"></i>
                                         </a>
-                                        <!-- PDF viewer removed as per requirements -->
+                                        <button class="btn btn-sm btn-outline-warning hide-btn" data-report-id="{{ report.id }}" data-report-title="{{ report.report_title }}">
+                                            <i class="fas fa-eye-slash"></i>
+                                        </button>
                                     </div>
                                 </td>
                             </tr>
@@ -132,15 +148,78 @@
 </div>
 {% endblock %}
 
+{% block head_content %}
+<title>Reports - Medicaid Audit Report Analyzer</title>
+<style>
+.sortable {
+    cursor: pointer;
+    user-select: none;
+}
+.sortable:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+.sort-icon {
+    opacity: 0.5;
+    margin-left: 5px;
+}
+.sort-active .sort-icon {
+    opacity: 1;
+}
+.hide-confirmation {
+    background-color: rgba(0, 0, 0, 0.8);
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1050;
+    display: none;
+}
+.hide-modal {
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    max-width: 500px;
+    margin: 10% auto;
+    color: black;
+}
+</style>
+{% endblock %}
+
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Get current sort parameters from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const currentSort = urlParams.get('sort_by') || 'created_at';
+    const currentDir = urlParams.get('sort_dir') || 'desc';
+    
+    // Update sort icons to show current state
+    updateSortIcons(currentSort, currentDir);
+    
+    // Handle column sorting
+    document.querySelectorAll('.sortable').forEach(header => {
+        header.addEventListener('click', function() {
+            const sortBy = this.getAttribute('data-sort');
+            let sortDir = 'asc';
+            
+            // If clicking on currently sorted column, toggle direction
+            if (sortBy === currentSort) {
+                sortDir = currentDir === 'asc' ? 'desc' : 'asc';
+            }
+            
+            // Build new URL with sort parameters
+            const currentPage = urlParams.get('page') || '1';
+            const newUrl = `${window.location.pathname}?sort_by=${sortBy}&sort_dir=${sortDir}&page=${currentPage}`;
+            window.location.href = newUrl;
+        });
+    });
+    
     // Toggle featured status
     document.querySelectorAll('.featured-toggle').forEach(toggle => {
         toggle.addEventListener('change', function() {
             const reportId = this.getAttribute('data-report-id');
             
-            // Send request to toggle featured status
             fetch(`/report/${reportId}/toggle_featured`, {
                 method: 'POST',
                 headers: {
@@ -151,17 +230,100 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 if (!data.success) {
                     console.error('Error toggling featured status:', data.error);
-                    // Revert the toggle if there was an error
                     this.checked = !this.checked;
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                // Revert the toggle if there was an error
                 this.checked = !this.checked;
             });
         });
     });
+    
+    // Handle hide buttons
+    document.querySelectorAll('.hide-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const reportId = this.getAttribute('data-report-id');
+            const reportTitle = this.getAttribute('data-report-title');
+            
+            showHideConfirmation(reportId, reportTitle);
+        });
+    });
+    
+    function updateSortIcons(sortBy, sortDir) {
+        // Reset all icons
+        document.querySelectorAll('.sortable').forEach(header => {
+            header.classList.remove('sort-active');
+            const icon = header.querySelector('.sort-icon');
+            icon.className = 'fas fa-sort sort-icon';
+        });
+        
+        // Set active icon
+        const activeHeader = document.querySelector(`[data-sort="${sortBy}"]`);
+        if (activeHeader) {
+            activeHeader.classList.add('sort-active');
+            const icon = activeHeader.querySelector('.sort-icon');
+            icon.className = `fas fa-sort-${sortDir === 'asc' ? 'up' : 'down'} sort-icon`;
+        }
+    }
+    
+    function showHideConfirmation(reportId, reportTitle) {
+        const modal = document.createElement('div');
+        modal.className = 'hide-confirmation';
+        modal.innerHTML = `
+            <div class="hide-modal">
+                <h5>Hide Report</h5>
+                <p>Are you sure you want to hide "<strong>${reportTitle}</strong>"?</p>
+                <p class="text-muted small">The report will be removed from this list but can be restored later. It will still be detected as a duplicate if uploaded again.</p>
+                <div class="d-flex justify-content-end gap-2 mt-3">
+                    <button class="btn btn-secondary" onclick="this.closest('.hide-confirmation').remove()">Cancel</button>
+                    <button class="btn btn-warning" onclick="hideReport(${reportId}, this.closest('.hide-confirmation'))">Hide Report</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        modal.style.display = 'block';
+    }
+    
+    window.hideReport = function(reportId, modal) {
+        fetch(`/report/${reportId}/hide`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                modal.remove();
+                // Remove the row from the table
+                const row = document.querySelector(`[data-report-id="${reportId}"]`).closest('tr');
+                row.remove();
+                
+                // Show success message
+                const alertDiv = document.createElement('div');
+                alertDiv.className = 'alert alert-success alert-dismissible fade show';
+                alertDiv.innerHTML = `
+                    ${data.message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                document.querySelector('.card-body').insertBefore(alertDiv, document.querySelector('.table-responsive'));
+                
+                // Auto-dismiss after 5 seconds
+                setTimeout(() => {
+                    if (alertDiv.parentNode) {
+                        alertDiv.remove();
+                    }
+                }, 5000);
+            } else {
+                alert('Error hiding report: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error hiding report. Please try again.');
+        });
+    };
 });
 </script>
 {% endblock %}

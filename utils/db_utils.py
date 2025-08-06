@@ -14,19 +14,19 @@ def check_duplicate_report(file_hash, filename):
         filename: Original filename of the report
         
     Returns:
-        tuple: (is_duplicate, existing_report, reason)
+        tuple: (is_duplicate, existing_report, reason, is_hidden)
     """
-    # Check for exact content match (file hash)
+    # Check for exact content match (file hash) - including hidden reports
     existing_report = Report.query.filter_by(file_hash=file_hash).first()
     if existing_report:
-        return (True, existing_report, "file_hash")
+        return (True, existing_report, "file_hash", existing_report.hidden)
     
-    # Check for filename match (might be different content)
+    # Check for filename match (might be different content) - including hidden reports
     existing_report = Report.query.filter_by(original_filename=filename).first()
     if existing_report:
-        return (True, existing_report, "filename")
+        return (True, existing_report, "filename", existing_report.hidden)
     
-    return (False, None, None)
+    return (False, None, None, False)
 
 def save_report_to_db(report_data, file_metadata, ai_log):
     """

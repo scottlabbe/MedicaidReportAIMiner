@@ -267,9 +267,41 @@ def register_routes(app):
         page = request.args.get('page', 1, type=int)
         per_page = 10
         
-        reports = Report.query.order_by(Report.created_at.desc()).paginate(page=page, per_page=per_page)
+        # Get sort parameters
+        sort_by = request.args.get('sort_by', 'created_at')
+        sort_dir = request.args.get('sort_dir', 'desc')
         
-        return render_template('reports.html', reports=reports)
+        # Only show non-hidden reports
+        query = Report.query.filter(Report.hidden == False)
+        
+        # Apply sorting
+        if sort_by == 'title':
+            sort_column = Report.report_title
+        elif sort_by == 'organization':
+            sort_column = Report.audit_organization
+        elif sort_by == 'state':
+            sort_column = Report.state
+        elif sort_by == 'publication_date':
+            sort_column = Report.publication_year.desc(), Report.publication_month.desc()
+        elif sort_by == 'featured':
+            sort_column = Report.featured
+        else:  # default to created_at
+            sort_column = Report.created_at
+        
+        if sort_dir == 'asc':
+            if sort_by == 'publication_date':
+                query = query.order_by(Report.publication_year.asc(), Report.publication_month.asc())
+            else:
+                query = query.order_by(sort_column.asc())
+        else:
+            if sort_by == 'publication_date':
+                query = query.order_by(Report.publication_year.desc(), Report.publication_month.desc())
+            else:
+                query = query.order_by(sort_column.desc())
+        
+        reports = query.paginate(page=page, per_page=per_page)
+        
+        return render_template('reports.html', reports=reports, sort_by=sort_by, sort_dir=sort_dir)
         
     @app.route('/compare-upload', methods=['GET'])
     def compare_upload():
@@ -510,6 +542,50 @@ def register_routes(app):
         except Exception as e:
             db.session.rollback()
             logging.error(f"Error toggling featured status: {e}")
+            
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+    
+    @app.route('/report/<int:report_id>/hide', methods=['POST'])
+    def hide_report(report_id):
+        """Hide a report (soft delete)"""
+        report = Report.query.get_or_404(report_id)
+        
+        try:
+            report.hidden = True
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': f'Report "{report.report_title}" has been hidden'
+            })
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Error hiding report: {e}")
+            
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+    
+    @app.route('/report/<int:report_id>/unhide', methods=['POST'])
+    def unhide_report(report_id):
+        """Unhide a report (restore from soft delete)"""
+        report = Report.query.filter_by(id=report_id, hidden=True).first_or_404()
+        
+        try:
+            report.hidden = False
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': f'Report "{report.report_title}" has been restored'
+            })
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Error unhiding report: {e}")
             
             return jsonify({
                 'success': False,
@@ -1088,7 +1164,9 @@ def register_routes(app):
                         'id': report.id,
                         'title': report.report_title,
                         'year': report.publication_year,
-                        'month': report.publication_month
+                        'month': report.publication_month,
+                        'hidden': report.hidden,
+                        'status': 'hidden' if report.hidden else 'visible'
                     }
                 })
             
