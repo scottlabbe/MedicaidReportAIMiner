@@ -1,4 +1,4 @@
-search:
+  search:
   audit_sites:
     federal:
       - oig.hhs.gov
@@ -6,7 +6,6 @@ search:
       - cms.gov
       - medicaid.gov
     state:
-      # Verified working sites
       - auditor.illinois.gov
       - auditor.ca.gov
       - sao.texas.gov
