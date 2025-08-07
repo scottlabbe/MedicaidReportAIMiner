@@ -108,24 +108,42 @@ def register_routes(app):
                     filename, file_size, file_hash, file_content = process_uploaded_file_memory(file)
                     
                     # Check for duplicates in both existing reports and queue
-                    is_duplicate, existing_report, reason = check_duplicate_report(file_hash, filename)
+                    is_duplicate, existing_report, reason, is_hidden = check_duplicate_report(file_hash, filename)
                     
                     if is_duplicate:
                         # Handle based on duplication reason
                         if reason == 'file_hash':
-                            upload_results.append({
-                                'filename': file.filename,
-                                'status': 'duplicate',
-                                'message': f'Report with same content already exists (ID: {existing_report.id})',
-                                'report_id': existing_report.id
-                            })
+                            if is_hidden:
+                                upload_results.append({
+                                    'filename': file.filename,
+                                    'status': 'hidden_duplicate',
+                                    'message': f'Report already exists but is hidden (ID: {existing_report.id}). Would you like to restore it?',
+                                    'report_id': existing_report.id,
+                                    'can_restore': True
+                                })
+                            else:
+                                upload_results.append({
+                                    'filename': file.filename,
+                                    'status': 'duplicate',
+                                    'message': f'Report with same content already exists (ID: {existing_report.id})',
+                                    'report_id': existing_report.id
+                                })
                         else:  # filename match
-                            upload_results.append({
-                                'filename': file.filename,
-                                'status': 'warning',
-                                'message': f'Report with same filename already exists (ID: {existing_report.id}). Content is different.',
-                                'report_id': existing_report.id
-                            })
+                            if is_hidden:
+                                upload_results.append({
+                                    'filename': file.filename,
+                                    'status': 'hidden_warning',
+                                    'message': f'Hidden report with same filename exists (ID: {existing_report.id}). Content may be different.',
+                                    'report_id': existing_report.id,
+                                    'can_restore': True
+                                })
+                            else:
+                                upload_results.append({
+                                    'filename': file.filename,
+                                    'status': 'warning',
+                                    'message': f'Report with same filename already exists (ID: {existing_report.id}). Content is different.',
+                                    'report_id': existing_report.id
+                                })
                         continue
                     
                     # Check for duplicates in the queue (by URL which we'll use as file hash for uploads)
@@ -184,7 +202,8 @@ def register_routes(app):
             
             # Handle upload results
             queued_count = len([r for r in upload_results if r['status'] == 'queued'])
-            duplicate_count = len([r for r in upload_results if r['status'] == 'duplicate'])
+            duplicate_count = len([r for r in upload_results if r['status'] in ['duplicate', 'hidden_duplicate']])
+            warning_count = len([r for r in upload_results if r['status'] in ['warning', 'hidden_warning']])
             error_count = len([r for r in upload_results if r['status'] == 'error'])
             
             if queued_count > 0:
