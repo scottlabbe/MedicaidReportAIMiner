@@ -4,6 +4,7 @@ import logging
 import json
 from datetime import datetime
 import instructor
+from instructor import Mode
 from typing import List, Optional
 from pydantic import BaseModel, Field
 from openai import OpenAI
@@ -56,7 +57,8 @@ def extract_data_with_openai(pdf_text, api_key):
     
     try:
         # Initialize the OpenAI client with instructor for structured output
-        client = instructor.patch(OpenAI(api_key=api_key))
+        # Use JSON_SCHEMA mode to avoid streaming validation errors
+        client = instructor.patch(OpenAI(api_key=api_key), mode=Mode.JSON_SCHEMA)
         
         # Prepare the system prompt
         system_prompt = """
@@ -103,6 +105,15 @@ def extract_data_with_openai(pdf_text, api_key):
         print("\n=== RAW AI EXTRACTION RESPONSE ===")
         print(response)
         print("=== END OF RAW AI EXTRACTION RESPONSE ===\n")
+        
+        # Add minimal validation for required fields to prevent data loss
+        if not response.state:
+            response.state = "US"  # Default fallback for missing state
+            logging.warning("State field was missing, defaulted to 'US'")
+        
+        if not response.audit_scope:
+            response.audit_scope = "Audit scope not specified in document"
+            logging.warning("Audit scope field was missing, used default text")
         
         # Calculate processing time
         processing_time = int((time.time() - start_time) * 1000)  # ms
