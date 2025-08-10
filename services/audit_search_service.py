@@ -104,9 +104,9 @@ class AuditSearchService:
         return added_count
     
     def get_pending_review_items(self):
-        """Get all items pending review."""
-        return db.session.query(ScrapingQueue).filter_by(
-            status='pending_review'
+        """Get all items pending review (includes manual uploads in pending status)."""
+        return db.session.query(ScrapingQueue).filter(
+            ScrapingQueue.status.in_(['pending_review', 'pending'])
         ).order_by(ScrapingQueue.created_at.desc()).all()
     
     def approve_for_processing(self, item_ids):
@@ -115,8 +115,9 @@ class AuditSearchService:
         
         for item_id in item_ids:
             item = db.session.query(ScrapingQueue).filter_by(
-                id=item_id,
-                status='pending_review'
+                id=item_id
+            ).filter(
+                ScrapingQueue.status.in_(['pending_review', 'pending'])
             ).first()
             
             if item:
@@ -137,8 +138,9 @@ class AuditSearchService:
         
         for item_id in item_ids:
             item = db.session.query(ScrapingQueue).filter_by(
-                id=item_id,
-                status='pending_review'
+                id=item_id
+            ).filter(
+                ScrapingQueue.status.in_(['pending_review', 'pending'])
             ).first()
             
             if item:
