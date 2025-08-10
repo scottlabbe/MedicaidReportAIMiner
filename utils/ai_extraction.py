@@ -57,8 +57,8 @@ def extract_data_with_openai(pdf_text, api_key):
     
     try:
         # Initialize the OpenAI client with instructor for structured output
-        # Use JSON_SCHEMA mode to avoid streaming validation errors
-        client = instructor.patch(OpenAI(api_key=api_key), mode=Mode.JSON_SCHEMA)
+        # Use TOOLS mode for compatibility with gpt-4.1-nano model
+        client = instructor.patch(OpenAI(api_key=api_key), mode=Mode.TOOLS)
         
         # Prepare the system prompt
         system_prompt = """
