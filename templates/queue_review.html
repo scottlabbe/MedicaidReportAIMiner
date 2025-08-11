@@ -47,23 +47,40 @@
                         </div>
                     </div>
                     <div class="card-body">
-                        <div class="alert alert-warning">
-                            <i class="fas fa-exclamation-triangle"></i>
-                            <strong>Cost Control:</strong> Only approved reports will be processed with AI extraction. 
-                            This saves on OpenAI costs by letting you review before full processing.
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>AI Provider Choice:</strong> Choose your AI provider for processing the selected reports. 
+                            Both OpenAI and Google Gemini support structured data extraction.
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="aiProviderSelect" class="form-label">
+                                    <i class="fas fa-robot"></i> AI Provider
+                                </label>
+                                <select class="form-select" id="aiProviderSelect">
+                                    <option value="openai" selected>OpenAI (GPT-4.1-nano)</option>
+                                    <option value="gemini">Google Gemini (2.5-flash)</option>
+                                </select>
+                                <small class="text-muted">
+                                    Choose the AI provider for structured data extraction
+                                </small>
+                            </div>
+                            <div class="col-md-6 d-flex align-items-end">
+                                <div class="btn-group w-100" role="group">
+                                    <button type="button" class="btn btn-success" onclick="approveSelected()">
+                                        <i class="fas fa-check"></i> Process Selected
+                                    </button>
+                                    <button type="button" class="btn btn-secondary" onclick="skipSelected()">
+                                        <i class="fas fa-times"></i> Skip Selected
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                         
                         <div class="mb-3">
-                            <div class="btn-group" role="group">
-                                <button type="button" class="btn btn-success" onclick="approveSelected()">
-                                    <i class="fas fa-check"></i> Process Selected Reports
-                                </button>
-                                <button type="button" class="btn btn-secondary" onclick="skipSelected()">
-                                    <i class="fas fa-times"></i> Skip Selected
-                                </button>
-                            </div>
-                            <small class="text-muted ms-3">
-                                <span id="selectedCount">0</span> reports selected
+                            <small class="text-muted">
+                                <span id="selectedCount">0</span> reports selected for processing
                             </small>
                         </div>
                     </div>
@@ -204,8 +221,11 @@ function approveSelected() {
         alert('Please select at least one report to process.');
         return;
     }
+    
+    const aiProvider = document.getElementById('aiProviderSelect').value;
+    const providerName = aiProvider === 'openai' ? 'OpenAI' : 'Google Gemini';
 
-    if (!confirm(`Process ${selectedIds.length} selected reports with AI extraction? This will consume OpenAI credits.`)) {
+    if (!confirm(`Process ${selectedIds.length} selected reports using ${providerName} for AI extraction?`)) {
         return;
     }
 
@@ -215,7 +235,8 @@ function approveSelected() {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-            item_ids: selectedIds
+            item_ids: selectedIds,
+            ai_provider: aiProvider
         })
     })
     .then(response => response.json())

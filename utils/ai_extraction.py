@@ -13,6 +13,13 @@ from openai import OpenAI
 # Changed from gpt-4o as per user request
 OPENAI_MODEL = "gpt-4.1-nano"
 
+# Import Gemini extraction function for AI provider choice
+try:
+    from utils.gemini_extraction import extract_data_with_gemini
+    GEMINI_AVAILABLE = True
+except ImportError:
+    GEMINI_AVAILABLE = False
+
 class ReportData(BaseModel):
     report_title: str = Field(..., description="The full title of the audit report, converted to standard title case (e.g., 'Annual Audit Report') even if it appears in all caps in the source.")
     audit_organization: str = Field(..., description="The organization that conducted the audit")
@@ -160,3 +167,34 @@ def extract_data_with_openai(pdf_text, api_key):
         
         # Re-raise with more context
         raise ValueError(f"Failed to extract data with OpenAI: {e}")
+
+def extract_data_with_ai(pdf_text: str, provider: str = "openai") -> tuple[ReportData, AIExtractionLog]:
+    """
+    Extract structured data using the specified AI provider.
+    
+    Args:
+        pdf_text: Text content of the PDF
+        provider: AI provider to use ("openai" or "gemini")
+        
+    Returns:
+        tuple: (ReportData object, AIExtractionLog object)
+    """
+    if provider.lower() == "gemini":
+        if not GEMINI_AVAILABLE:
+            raise ImportError("Gemini extraction not available. Please install required dependencies.")
+        
+        api_key = os.environ.get("GEMINI_API_KEY")
+        if not api_key:
+            raise ValueError("GEMINI_API_KEY not found in environment variables")
+        
+        return extract_data_with_gemini(pdf_text, api_key)
+    
+    elif provider.lower() == "openai":
+        api_key = os.environ.get("OPENAI_API_KEY") 
+        if not api_key:
+            raise ValueError("OPENAI_API_KEY not found in environment variables")
+        
+        return extract_data_with_openai(pdf_text, api_key)
+    
+    else:
+        raise ValueError(f"Unknown AI provider: {provider}. Supported providers: 'openai', 'gemini'")

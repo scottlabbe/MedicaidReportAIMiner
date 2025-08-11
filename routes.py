@@ -1098,17 +1098,21 @@ def register_routes(app):
 
     @app.route('/api/queue/approve', methods=['POST'])
     def approve_queue_items():
-        """Approve selected items for full AI processing."""
+        """Approve selected items for full AI processing with chosen provider."""
         item_ids = request.json.get('item_ids', [])
+        ai_provider = request.json.get('ai_provider', 'openai')  # Default to OpenAI
         
         try:
             service = AuditSearchService()
-            approved = service.approve_for_processing(item_ids)
+            approved = service.approve_for_processing(item_ids, ai_provider=ai_provider)
+            
+            provider_name = 'OpenAI' if ai_provider == 'openai' else 'Google Gemini'
             
             return jsonify({
                 'success': True,
                 'approved': approved,
-                'message': f'Approved {approved} reports for processing'
+                'ai_provider': ai_provider,
+                'message': f'Approved {approved} reports for processing with {provider_name}'
             })
         except Exception as e:
             logging.error(f"Queue approval error: {str(e)}")

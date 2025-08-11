@@ -7,7 +7,7 @@ from datetime import datetime
 from models import ScrapingQueue, Report, DuplicateCheck
 from app import db, app
 from utils.pdf_utils import extract_text_from_pdf_memory, get_file_hash_memory
-from utils.ai_extraction import extract_data_with_openai
+from utils.ai_extraction import extract_data_with_ai
 
 
 class QueueProcessor:
@@ -83,7 +83,9 @@ class QueueProcessor:
                 db.session.add(dup_check)
             else:
                 # Process through existing pipeline
-                report = self._create_report(item, pdf_content, is_upload)
+                # Get AI provider preference from item metadata or default to openai
+                ai_provider = item.document_metadata.get('ai_provider', 'openai') if item.document_metadata else 'openai'
+                report = self._create_report(item, pdf_content, is_upload, ai_provider)
                 if report:
                     item.status = 'completed'
                     item.report_id = report.id
@@ -104,7 +106,7 @@ class QueueProcessor:
             item.completed_at = datetime.utcnow()
             db.session.commit()
     
-    def _create_report(self, queue_item, pdf_content, is_upload=False):
+    def _create_report(self, queue_item, pdf_content, is_upload=False, ai_provider="openai"):
         """Create a new report from PDF content (downloaded or uploaded)."""
         try:
             # Create BytesIO object for PDF processing
@@ -116,13 +118,8 @@ class QueueProcessor:
             # Calculate file hash
             file_hash = hashlib.sha256(pdf_content).hexdigest()
             
-            # Get OpenAI API key
-            api_key = app.config.get('OPENAI_API_KEY')
-            if not api_key:
-                raise ValueError("OpenAI API key not configured")
-            
-            # Extract data with AI
-            report_data, ai_log = extract_data_with_openai(extracted_text, api_key)
+            # Extract data with AI using specified provider
+            report_data, ai_log = extract_data_with_ai(extracted_text, provider=ai_provider)
             
             # Create report object
             # Get the appropriate filename and URL based on source
