@@ -75,51 +75,45 @@ def save_report_to_db(report_data, file_metadata, ai_log):
         # Add objectives
         if is_dict:
             for obj_text in report_data['objectives']:
-                objective = Objective(
-                    report_id=report.id,
-                    objective_text=obj_text
-                )
+                objective = Objective()
+                objective.report_id = report.id
+                objective.objective_text = obj_text
                 db.session.add(objective)
         else:
             for obj_text in report_data.objectives:
-                objective = Objective(
-                    report_id=report.id,
-                    objective_text=obj_text
-                )
+                objective = Objective()
+                objective.report_id = report.id
+                objective.objective_text = obj_text
                 db.session.add(objective)
         
         # Add findings
         if is_dict:
             for finding_text in report_data['findings']:
-                finding = Finding(
-                    report_id=report.id,
-                    finding_text=finding_text,
-                    financial_impact=None  # No longer available in simplified model
-                )
+                finding = Finding()
+                finding.report_id = report.id
+                finding.finding_text = finding_text
+                finding.financial_impact = None  # No longer available in simplified model
                 db.session.add(finding)
         else:
             for finding_text in report_data.findings:
-                finding = Finding(
-                    report_id=report.id,
-                    finding_text=finding_text,
-                    financial_impact=None  # No longer available in simplified model
-                )
+                finding = Finding()
+                finding.report_id = report.id
+                finding.finding_text = finding_text
+                finding.financial_impact = None  # No longer available in simplified model
                 db.session.add(finding)
         
         # Add recommendations
         if is_dict:
             for rec_text in report_data['recommendations']:
-                recommendation = Recommendation(
-                    report_id=report.id,
-                    recommendation_text=rec_text
-                )
+                recommendation = Recommendation()
+                recommendation.report_id = report.id
+                recommendation.recommendation_text = rec_text
                 db.session.add(recommendation)
         else:
             for rec_text in report_data.recommendations:
-                recommendation = Recommendation(
-                    report_id=report.id,
-                    recommendation_text=rec_text
-                )
+                recommendation = Recommendation()
+                recommendation.report_id = report.id
+                recommendation.recommendation_text = rec_text
                 db.session.add(recommendation)
         
         # Add keywords - with many-to-many relationship
@@ -133,7 +127,8 @@ def save_report_to_db(report_data, file_metadata, ai_log):
             keyword = Keyword.query.filter_by(keyword_text=kw_text).first()
             if not keyword:
                 # Create new keyword if it doesn't exist
-                keyword = Keyword(keyword_text=kw_text)
+                keyword = Keyword()
+                keyword.keyword_text = kw_text
                 db.session.add(keyword)
                 db.session.flush()  # Flush to get the keyword ID
             
@@ -143,19 +138,18 @@ def save_report_to_db(report_data, file_metadata, ai_log):
         # Add AI processing log
         is_ai_log_dict = isinstance(ai_log, dict)
         
-        ai_processing_log = AIProcessingLog(
-            report_id=report.id,
-            model_name=ai_log['model_name'] if is_ai_log_dict else ai_log.model_name,
-            input_tokens=ai_log['input_tokens'] if is_ai_log_dict else ai_log.input_tokens,
-            output_tokens=ai_log['output_tokens'] if is_ai_log_dict else ai_log.output_tokens,
-            total_tokens=ai_log['total_tokens'] if is_ai_log_dict else ai_log.total_tokens,
-            input_cost=ai_log['input_cost'] if is_ai_log_dict else ai_log.input_cost,
-            output_cost=ai_log['output_cost'] if is_ai_log_dict else ai_log.output_cost,
-            total_cost=ai_log['total_cost'] if is_ai_log_dict else ai_log.total_cost,
-            processing_time_ms=ai_log['processing_time_ms'] if is_ai_log_dict else ai_log.processing_time_ms,
-            extraction_status=ai_log['extraction_status'] if is_ai_log_dict else ai_log.extraction_status,
-            error_details=ai_log['error_details'] if is_ai_log_dict and 'error_details' in ai_log else (ai_log.error_details if not is_ai_log_dict else None)
-        )
+        ai_processing_log = AIProcessingLog()
+        ai_processing_log.report_id = report.id
+        ai_processing_log.model_name = ai_log['model_name'] if is_ai_log_dict else ai_log.model_name
+        ai_processing_log.input_tokens = ai_log['input_tokens'] if is_ai_log_dict else ai_log.input_tokens
+        ai_processing_log.output_tokens = ai_log['output_tokens'] if is_ai_log_dict else ai_log.output_tokens
+        ai_processing_log.total_tokens = ai_log['total_tokens'] if is_ai_log_dict else ai_log.total_tokens
+        ai_processing_log.input_cost = ai_log['input_cost'] if is_ai_log_dict else ai_log.input_cost
+        ai_processing_log.output_cost = ai_log['output_cost'] if is_ai_log_dict else ai_log.output_cost
+        ai_processing_log.total_cost = ai_log['total_cost'] if is_ai_log_dict else ai_log.total_cost
+        ai_processing_log.processing_time_ms = ai_log['processing_time_ms'] if is_ai_log_dict else ai_log.processing_time_ms
+        ai_processing_log.extraction_status = ai_log['extraction_status'] if is_ai_log_dict else ai_log.extraction_status
+        ai_processing_log.error_details = ai_log['error_details'] if is_ai_log_dict and 'error_details' in ai_log else (ai_log.error_details if not is_ai_log_dict else None)
         db.session.add(ai_processing_log)
         
         # Commit the transaction
@@ -180,88 +174,130 @@ def update_report_in_db(report_id, updated_data):
     Returns:
         Report: The updated Report object
     """
+    # Log the update attempt
+    logging.info(f"Starting update of report ID {report_id}")
+    
     try:
-        # Start a transaction
+        # Validate input data
+        if not updated_data:
+            raise ValueError("No update data provided")
+        
+        # Start explicit transaction
         report = Report.query.get(report_id)
         if not report:
             raise ValueError(f"Report with ID {report_id} not found")
         
         # Update main report fields
-        for key, value in updated_data.get('report', {}).items():
-            if hasattr(report, key):
-                setattr(report, key, value)
+        report_data = updated_data.get('report', {})
+        if report_data:
+            logging.info(f"Updating {len(report_data)} main report fields")
+            for key, value in report_data.items():
+                if hasattr(report, key):
+                    setattr(report, key, value)
+                    logging.debug(f"Updated field {key}")
+                else:
+                    logging.warning(f"Ignoring unknown field: {key}")
         
         # Update objectives
         if 'objectives' in updated_data:
+            objectives_data = updated_data['objectives']
+            logging.info(f"Updating {len(objectives_data)} objectives")
+            
             # Delete existing objectives
-            Objective.query.filter_by(report_id=report_id).delete()
+            deleted_count = Objective.query.filter_by(report_id=report_id).delete()
+            logging.debug(f"Deleted {deleted_count} existing objectives")
             
             # Add updated objectives
-            for obj_text in updated_data['objectives']:
-                objective = Objective(
-                    report_id=report_id,
-                    objective_text=obj_text if isinstance(obj_text, str) else obj_text['objective_text']
-                )
-                db.session.add(objective)
+            for obj_text in objectives_data:
+                if obj_text and obj_text.strip():  # Skip empty objectives
+                    objective = Objective()
+                    objective.report_id = report_id
+                    objective.objective_text = obj_text if isinstance(obj_text, str) else obj_text['objective_text']
+                    db.session.add(objective)
         
         # Update findings
         if 'findings' in updated_data:
+            findings_data = updated_data['findings']
+            logging.info(f"Updating {len(findings_data)} findings")
+            
             # Delete existing findings
-            Finding.query.filter_by(report_id=report_id).delete()
+            deleted_count = Finding.query.filter_by(report_id=report_id).delete()
+            logging.debug(f"Deleted {deleted_count} existing findings")
             
             # Add updated findings
-            for find_text in updated_data['findings']:
-                finding = Finding(
-                    report_id=report_id,
-                    finding_text=find_text if isinstance(find_text, str) else find_text['finding_text'],
-                    financial_impact=None if isinstance(find_text, str) else find_text.get('financial_impact')
-                )
-                db.session.add(finding)
+            for find_text in findings_data:
+                if find_text and find_text.strip():  # Skip empty findings
+                    finding = Finding()
+                    finding.report_id = report_id
+                    finding.finding_text = find_text if isinstance(find_text, str) else find_text['finding_text']
+                    finding.financial_impact = None if isinstance(find_text, str) else find_text.get('financial_impact')
+                    db.session.add(finding)
         
         # Update recommendations
         if 'recommendations' in updated_data:
+            recommendations_data = updated_data['recommendations']
+            logging.info(f"Updating {len(recommendations_data)} recommendations")
+            
             # Delete existing recommendations
-            Recommendation.query.filter_by(report_id=report_id).delete()
+            deleted_count = Recommendation.query.filter_by(report_id=report_id).delete()
+            logging.debug(f"Deleted {deleted_count} existing recommendations")
             
             # Add updated recommendations
-            for rec_text in updated_data['recommendations']:
-                recommendation = Recommendation(
-                    report_id=report_id,
-                    recommendation_text=rec_text if isinstance(rec_text, str) else rec_text['recommendation_text']
-                )
-                db.session.add(recommendation)
+            for rec_text in recommendations_data:
+                if rec_text and rec_text.strip():  # Skip empty recommendations
+                    recommendation = Recommendation()
+                    recommendation.report_id = report_id
+                    recommendation.recommendation_text = rec_text if isinstance(rec_text, str) else rec_text['recommendation_text']
+                    db.session.add(recommendation)
         
         # Update keywords - with many-to-many relationship
         if 'keywords' in updated_data:
+            keywords_data = updated_data['keywords']
+            logging.info(f"Updating {len(keywords_data)} keywords")
+            
             # Clear existing keyword associations
             report.keywords = []
             
             # Add updated keywords
-            for kw_text in updated_data['keywords']:
-                # Check if keyword already exists
-                keyword = Keyword.query.filter_by(keyword_text=kw_text).first()
-                if not keyword:
-                    # Create new keyword if it doesn't exist
-                    keyword = Keyword(keyword_text=kw_text)
-                    db.session.add(keyword)
-                    db.session.flush()  # Flush to get the keyword ID
-                
-                # Add keyword to report's keywords collection
-                report.keywords.append(keyword)
+            for kw_text in keywords_data:
+                if kw_text and kw_text.strip():  # Skip empty keywords
+                    # Check if keyword already exists
+                    keyword = Keyword.query.filter_by(keyword_text=kw_text.strip()).first()
+                    if not keyword:
+                        # Create new keyword if it doesn't exist
+                        keyword = Keyword()
+                        keyword.keyword_text = kw_text.strip()
+                        db.session.add(keyword)
+                        db.session.flush()  # Flush to get the keyword ID
+                        logging.debug(f"Created new keyword: {kw_text.strip()}")
+                    
+                    # Add keyword to report's keywords collection
+                    report.keywords.append(keyword)
         
         # Update timestamp
         report.updated_at = datetime.utcnow()
         
         # Commit the transaction
         db.session.commit()
+        logging.info(f"Successfully updated report ID {report_id}")
         
         return report
     
     except Exception as e:
         # Rollback the transaction in case of error
         db.session.rollback()
-        logging.error(f"Error updating report in database: {e}")
-        raise ValueError(f"Failed to update report in database: {e}")
+        
+        # Provide detailed error logging
+        error_msg = f"Error updating report ID {report_id}: {str(e)}"
+        logging.error(error_msg, exc_info=True)
+        
+        # Re-raise with user-friendly message
+        if "constraint" in str(e).lower():
+            raise ValueError("Data validation failed. Please check your input and try again.")
+        elif "not found" in str(e).lower():
+            raise ValueError(f"Report with ID {report_id} was not found.")
+        else:
+            raise ValueError(f"Unable to save changes: {str(e)}")
 
 
 def print_report_data(report_id=None, report=None):

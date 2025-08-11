@@ -342,70 +342,106 @@ document.addEventListener('DOMContentLoaded', function() {
         container.appendChild(newItem);
     });
     
-    // Form submission
+    // Form submission with enhanced error handling and user feedback
     document.getElementById('editForm').addEventListener('submit', function(e) {
         e.preventDefault();
         
-        // Collect objectives (simplified as string array)
-        const objectives = [];
-        document.querySelectorAll('.objective-item').forEach(item => {
-            const text = item.querySelector('.objective-text').value.trim();
-            if (text) {
-                objectives.push(text);
+        // Get save button and show loading state
+        const saveBtn = document.querySelector('button[type="submit"]');
+        const originalText = saveBtn.innerHTML;
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Saving...';
+        
+        try {
+            // Validate required fields
+            const requiredFields = [
+                { id: 'report_title', name: 'Report Title' },
+                { id: 'audit_organization', name: 'Audit Organization' },
+                { id: 'publication_year', name: 'Publication Year' },
+                { id: 'publication_month', name: 'Publication Month' },
+                { id: 'state', name: 'State' }
+            ];
+            
+            for (const field of requiredFields) {
+                const element = document.getElementById(field.id);
+                if (!element.value || element.value.trim() === '') {
+                    throw new Error(`${field.name} is required`);
+                }
             }
-        });
-        
-        // Collect findings (simplified as string array)
-        const findings = [];
-        document.querySelectorAll('.finding-item').forEach(item => {
-            const text = item.querySelector('.finding-text').value.trim();
-            if (text) {
-                findings.push(text);
-            }
-        });
-        
-        // Collect recommendations (simplified as string array)
-        const recommendations = [];
-        document.querySelectorAll('.recommendation-item').forEach(item => {
-            const text = item.querySelector('.recommendation-text').value.trim();
-            if (text) {
-                recommendations.push(text);
-            }
-        });
-        
-        // Process keywords
-        const keywordsText = document.getElementById('keywordsInput').value;
-        const keywords = keywordsText
-            .split(',')
-            .map(k => k.trim())
-            .filter(k => k.length > 0);
-        
-        // Create data object
-        const reportData = {
-            report: {
-                report_title: document.getElementById('report_title').value,
-                audit_organization: document.getElementById('audit_organization').value,
-                publication_year: parseInt(document.getElementById('publication_year').value),
-                publication_month: parseInt(document.getElementById('publication_month').value),
-                publication_day: document.getElementById('publication_day').value ? parseInt(document.getElementById('publication_day').value) : null,
-                overall_conclusion: document.getElementById('overall_conclusion').value,
-                llm_insight: document.getElementById('llm_insight').value,
-                potential_objective_summary: document.getElementById('potential_objective_summary').value,
-                original_report_source_url: document.getElementById('original_report_source_url').value,
-                state: document.getElementById('state').value,
-                audit_scope: document.getElementById('audit_scope').value
-            },
-            objectives: objectives,
-            findings: findings,
-            recommendations: recommendations,
-            keywords: keywords
-        };
-        
-        // Set the hidden input value
-        document.getElementById('reportDataJson').value = JSON.stringify(reportData);
-        
-        // Submit the form
-        this.submit();
+            
+            // Collect objectives (simplified as string array)
+            const objectives = [];
+            document.querySelectorAll('.objective-item').forEach(item => {
+                const text = item.querySelector('.objective-text').value.trim();
+                if (text) {
+                    objectives.push(text);
+                }
+            });
+            
+            // Collect findings (simplified as string array)
+            const findings = [];
+            document.querySelectorAll('.finding-item').forEach(item => {
+                const text = item.querySelector('.finding-text').value.trim();
+                if (text) {
+                    findings.push(text);
+                }
+            });
+            
+            // Collect recommendations (simplified as string array)
+            const recommendations = [];
+            document.querySelectorAll('.recommendation-item').forEach(item => {
+                const text = item.querySelector('.recommendation-text').value.trim();
+                if (text) {
+                    recommendations.push(text);
+                }
+            });
+            
+            // Process keywords
+            const keywordsText = document.getElementById('keywordsInput').value;
+            const keywords = keywordsText
+                .split(',')
+                .map(k => k.trim())
+                .filter(k => k.length > 0);
+            
+            // Create data object
+            const reportData = {
+                report: {
+                    report_title: document.getElementById('report_title').value.trim(),
+                    audit_organization: document.getElementById('audit_organization').value.trim(),
+                    publication_year: parseInt(document.getElementById('publication_year').value),
+                    publication_month: parseInt(document.getElementById('publication_month').value),
+                    publication_day: document.getElementById('publication_day').value ? parseInt(document.getElementById('publication_day').value) : null,
+                    overall_conclusion: document.getElementById('overall_conclusion').value.trim(),
+                    llm_insight: document.getElementById('llm_insight').value.trim(),
+                    potential_objective_summary: document.getElementById('potential_objective_summary').value.trim(),
+                    original_report_source_url: document.getElementById('original_report_source_url').value.trim(),
+                    state: document.getElementById('state').value,
+                    audit_scope: document.getElementById('audit_scope').value.trim()
+                },
+                objectives: objectives,
+                findings: findings,
+                recommendations: recommendations,
+                keywords: keywords
+            };
+            
+            // Log data for debugging
+            console.log('Saving report data:', reportData);
+            
+            // Set the hidden input value
+            document.getElementById('reportDataJson').value = JSON.stringify(reportData);
+            
+            // Submit the form
+            this.submit();
+            
+        } catch (error) {
+            // Reset button state on error
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = originalText;
+            
+            // Show error message
+            alert('Error: ' + error.message);
+            console.error('Form validation error:', error);
+        }
     });
 });
 </script>

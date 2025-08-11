@@ -345,7 +345,11 @@ function skipSelected() {
 document.addEventListener('DOMContentLoaded', function() {
     domReady = true;
     updateSelectedCount();
-    updateCostEstimate(); // Initialize cost display
+    
+    // Only initialize cost estimate if we're on the queue review page
+    if (document.getElementById('aiProviderSelect')) {
+        updateCostEstimate(); // Initialize cost display
+    }
 });
 </script>
 {% endblock %}
