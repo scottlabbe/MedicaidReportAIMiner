@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Report Edit Debug</title>
+</head>
+<body>
+    <h2>Report Edit Debugging Tool</h2>
+    
+    <form id="testForm" method="POST" action="/report/8/edit">
+        <input type="hidden" id="reportDataJson" name="report_data">
+        
+        <label>Report Title:</label>
+        <input type="text" id="report_title" value="Test Report Title"><br><br>
+        
+        <label>Audit Organization:</label>
+        <input type="text" id="audit_organization" value="Test Audit Org"><br><br>
+        
+        <label>Publication Year:</label>
+        <input type="number" id="publication_year" value="2023"><br><br>
+        
+        <label>Publication Month:</label>
+        <input type="number" id="publication_month" value="6"><br><br>
+        
+        <label>State:</label>
+        <select id="state">
+            <option value="TX">Texas</option>
+        </select><br><br>
+        
+        <label>URL:</label>
+        <input type="text" id="original_report_source_url" value="test-url-not-standard-format"><br><br>
+        
+        <label>Overall Conclusion:</label>
+        <textarea id="overall_conclusion">Test conclusion</textarea><br><br>
+        
+        <label>LLM Insight:</label>
+        <textarea id="llm_insight">Test insight</textarea><br><br>
+        
+        <label>Potential Objective Summary:</label>
+        <textarea id="potential_objective_summary">Test summary</textarea><br><br>
+        
+        <label>Audit Scope:</label>
+        <textarea id="audit_scope">Test scope</textarea><br><br>
+        
+        <button type="submit">Save Changes</button>
+    </form>
+
+    <script>
+    document.getElementById('testForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        console.log('TEST FORM: Starting submission');
+        
+        const reportData = {
+            report: {
+                report_title: document.getElementById('report_title').value.trim(),
+                audit_organization: document.getElementById('audit_organization').value.trim(),
+                publication_year: parseInt(document.getElementById('publication_year').value),
+                publication_month: parseInt(document.getElementById('publication_month').value),
+                publication_day: null,
+                overall_conclusion: document.getElementById('overall_conclusion').value.trim(),
+                llm_insight: document.getElementById('llm_insight').value.trim(),
+                potential_objective_summary: document.getElementById('potential_objective_summary').value.trim(),
+                original_report_source_url: document.getElementById('original_report_source_url').value.trim(),
+                state: document.getElementById('state').value,
+                audit_scope: document.getElementById('audit_scope').value.trim()
+            },
+            objectives: ['Test objective 1'],
+            findings: ['Test finding 1'],
+            recommendations: ['Test recommendation 1'],
+            keywords: ['test', 'debug']
+        };
+        
+        console.log('TEST FORM: Data prepared:', reportData);
+        
+        document.getElementById('reportDataJson').value = JSON.stringify(reportData);
+        
+        console.log('TEST FORM: Hidden input populated, submitting...');
+        
+        this.submit();
+    });
+    </script>
+</body>
+</html>

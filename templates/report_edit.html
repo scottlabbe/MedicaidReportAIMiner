@@ -159,7 +159,8 @@
                         
                         <div class="mb-3">
                             <label for="original_report_source_url" class="form-label">Original Report URL</label>
-                            <input type="url" class="form-control" id="original_report_source_url" value="{{ report.original_report_source_url }}">
+                            <input type="text" class="form-control" id="original_report_source_url" value="{{ report.original_report_source_url or '' }}" placeholder="Enter URL (flexible format accepted)">
+                            <small class="form-text text-muted">Note: This field accepts any text format and can be updated later</small>
                         </div>
                     </div>
                     
@@ -353,6 +354,8 @@ document.addEventListener('DOMContentLoaded', function() {
         saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Saving...';
         
         try {
+            console.log('Form submission started');
+            
             // Validate required fields
             const requiredFields = [
                 { id: 'report_title', name: 'Report Title' },
@@ -364,10 +367,16 @@ document.addEventListener('DOMContentLoaded', function() {
             
             for (const field of requiredFields) {
                 const element = document.getElementById(field.id);
+                console.log(`Checking field ${field.id}: value = "${element?.value}"`);
+                if (!element) {
+                    throw new Error(`Field ${field.name} not found`);
+                }
                 if (!element.value || element.value.trim() === '') {
                     throw new Error(`${field.name} is required`);
                 }
             }
+            
+            console.log('Required field validation passed');
             
             // Collect objectives (simplified as string array)
             const objectives = [];
@@ -425,10 +434,16 @@ document.addEventListener('DOMContentLoaded', function() {
             };
             
             // Log data for debugging
-            console.log('Saving report data:', reportData);
+            console.log('Report data prepared:', reportData);
             
             // Set the hidden input value
-            document.getElementById('reportDataJson').value = JSON.stringify(reportData);
+            const hiddenInput = document.getElementById('reportDataJson');
+            if (!hiddenInput) {
+                throw new Error('Hidden input field reportDataJson not found');
+            }
+            
+            hiddenInput.value = JSON.stringify(reportData);
+            console.log('Hidden input populated, submitting form...');
             
             // Submit the form
             this.submit();

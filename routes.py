@@ -499,24 +499,36 @@ def register_routes(app):
         
         if request.method == 'POST':
             try:
+                logging.info(f"POST request received for report ID {report_id}")
+                logging.info(f"Form data keys: {list(request.form.keys())}")
+                
                 # Get updated data from form
                 updated_data = request.form.get('report_data')
+                logging.info(f"Raw form data length: {len(updated_data) if updated_data else 0}")
+                
                 if not updated_data:
-                    raise ValueError("No report data provided")
+                    logging.error("No report_data field in form submission")
+                    raise ValueError("No report data provided in form submission")
                 
                 # Parse JSON data
-                updated_data = json.loads(updated_data)
+                try:
+                    updated_data = json.loads(updated_data)
+                    logging.info(f"Successfully parsed JSON data with keys: {list(updated_data.keys())}")
+                except json.JSONDecodeError as je:
+                    logging.error(f"JSON parsing error: {je}")
+                    logging.error(f"Raw data preview: {updated_data[:200]}...")
+                    raise ValueError(f"Invalid JSON data provided: {je}")
                 
                 # Update in database
+                logging.info(f"Calling update_report_in_db for report {report_id}")
                 report = update_report_in_db(report_id, updated_data)
                 
-                # Report successfully updated
-                
+                logging.info(f"Report {report_id} updated successfully")
                 flash('Report updated successfully', 'success')
                 return redirect(url_for('report_detail', report_id=report.id))
             
             except Exception as e:
-                logging.error(f"Error updating report: {e}")
+                logging.error(f"Error updating report {report_id}: {e}", exc_info=True)
                 flash(f'Error updating report: {str(e)}', 'danger')
         
         # Prepare report data for the template
