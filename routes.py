@@ -1098,20 +1098,31 @@ def register_routes(app):
 
     @app.route('/api/queue/approve', methods=['POST'])
     def approve_queue_items():
-        """Approve selected items for full AI processing with chosen provider."""
+        """Approve selected items for full AI processing with chosen provider and model."""
         item_ids = request.json.get('item_ids', [])
         ai_provider = request.json.get('ai_provider', 'openai')  # Default to OpenAI
+        ai_model = request.json.get('ai_model')  # Optional model specification
         
         try:
             service = AuditSearchService()
-            approved = service.approve_for_processing(item_ids, ai_provider=ai_provider)
+            approved = service.approve_for_processing(item_ids, ai_provider=ai_provider, ai_model=ai_model)
             
-            provider_name = 'OpenAI' if ai_provider == 'openai' else 'Google Gemini'
+            # Create descriptive provider name
+            if ai_provider == 'openai':
+                if ai_model == 'gpt-5-nano':
+                    provider_name = 'OpenAI GPT-5-nano'
+                elif ai_model == 'gpt-4.1-nano':
+                    provider_name = 'OpenAI GPT-4.1-nano'
+                else:
+                    provider_name = 'OpenAI GPT-5-nano (default)'
+            else:
+                provider_name = 'Google Gemini 2.5-flash'
             
             return jsonify({
                 'success': True,
                 'approved': approved,
                 'ai_provider': ai_provider,
+                'ai_model': ai_model,
                 'message': f'Approved {approved} reports for processing with {provider_name}'
             })
         except Exception as e:

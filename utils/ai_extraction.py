@@ -9,9 +9,10 @@ from typing import List, Optional
 from pydantic import BaseModel, Field
 from openai import OpenAI
 
-# Using gpt-4.1-nano model as explicitly requested by the user
-# Changed from gpt-4o as per user request
-OPENAI_MODEL = "gpt-4.1-nano"
+# OpenAI model options - GPT-5-nano is now recommended for better performance and 8x lower cost
+OPENAI_MODEL_GPT41_NANO = "gpt-4.1-nano"  # Legacy model
+OPENAI_MODEL_GPT5_NANO = "gpt-5-nano"     # New recommended model
+OPENAI_MODEL_DEFAULT = OPENAI_MODEL_GPT5_NANO  # Default to latest model
 
 # Import Gemini extraction function for AI provider choice
 try:
@@ -49,13 +50,14 @@ class AIExtractionLog(BaseModel):
     extraction_status: str
     error_details: Optional[str] = None
 
-def extract_data_with_openai(pdf_text, api_key):
+def extract_data_with_openai(pdf_text, api_key, model=OPENAI_MODEL_DEFAULT):
     """
     Extract structured data from PDF text using OpenAI's API with instructor.
     
     Args:
         pdf_text: Text content of the PDF
         api_key: OpenAI API key
+        model: OpenAI model to use (default: gpt-5-nano)
         
     Returns:
         tuple: (ReportData object, AIExtractionLog object)
@@ -97,16 +99,22 @@ def extract_data_with_openai(pdf_text, api_key):
         If the report text is cut off, please extract as much information as possible from the provided text.
         """
         
-        # Make the API call with structured output using instructor
-        response = client.chat.completions.create(
-            model=OPENAI_MODEL,
-            response_model=ReportData,
-            messages=[
+        # Make the API call with structured output using instructor and specified model
+        # Note: GPT-5 models only support default temperature (1.0)
+        api_params = {
+            "model": model,
+            "response_model": ReportData,
+            "messages": [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
-            ],
-            temperature=0.2  # Low temperature for more deterministic output
-        )
+            ]
+        }
+        
+        # Only add temperature for models that support it (GPT-4.1-nano)
+        if model == OPENAI_MODEL_GPT41_NANO:
+            api_params["temperature"] = 0.2
+        
+        response = client.chat.completions.create(**api_params)
         
         # Print raw AI response to console
         print("\n=== RAW AI EXTRACTION RESPONSE ===")
@@ -131,14 +139,24 @@ def extract_data_with_openai(pdf_text, api_key):
         estimated_input_tokens = len(pdf_text) // 4  # rough estimate
         estimated_output_tokens = 1000  # rough estimate
         
+        # Calculate costs based on model pricing
+        if model == OPENAI_MODEL_GPT5_NANO:
+            # GPT-5-nano pricing: $0.05 input / $0.40 output per 1M tokens
+            input_cost = estimated_input_tokens * 0.00000005
+            output_cost = estimated_output_tokens * 0.0000004
+        else:
+            # GPT-4.1-nano or other models (legacy pricing)
+            input_cost = estimated_input_tokens * 0.00001
+            output_cost = estimated_output_tokens * 0.00003
+        
         log = AIExtractionLog(
-            model_name=OPENAI_MODEL,
+            model_name=model,
             input_tokens=estimated_input_tokens,
             output_tokens=estimated_output_tokens,
             total_tokens=estimated_input_tokens + estimated_output_tokens,
-            input_cost=estimated_input_tokens * 0.00001,  # rough estimate
-            output_cost=estimated_output_tokens * 0.00003,  # rough estimate
-            total_cost=(estimated_input_tokens * 0.00001) + (estimated_output_tokens * 0.00003),
+            input_cost=input_cost,
+            output_cost=output_cost,
+            total_cost=input_cost + output_cost,
             processing_time_ms=processing_time,
             extraction_status="SUCCESS"
         )
@@ -153,7 +171,7 @@ def extract_data_with_openai(pdf_text, api_key):
         
         # Create error log
         log = AIExtractionLog(
-            model_name=OPENAI_MODEL,
+            model_name=model,
             input_tokens=0,
             output_tokens=0,
             total_tokens=0,
@@ -168,13 +186,14 @@ def extract_data_with_openai(pdf_text, api_key):
         # Re-raise with more context
         raise ValueError(f"Failed to extract data with OpenAI: {e}")
 
-def extract_data_with_ai(pdf_text: str, provider: str = "openai") -> tuple[ReportData, AIExtractionLog]:
+def extract_data_with_ai(pdf_text: str, provider: str = "openai", model: str = None) -> tuple[ReportData, AIExtractionLog]:
     """
-    Extract structured data using the specified AI provider.
+    Extract structured data using the specified AI provider and model.
     
     Args:
         pdf_text: Text content of the PDF
         provider: AI provider to use ("openai" or "gemini")
+        model: Specific model to use (for OpenAI: "gpt-5-nano", "gpt-4.1-nano")
         
     Returns:
         tuple: (ReportData object, AIExtractionLog object)
@@ -194,7 +213,9 @@ def extract_data_with_ai(pdf_text: str, provider: str = "openai") -> tuple[Repor
         if not api_key:
             raise ValueError("OPENAI_API_KEY not found in environment variables")
         
-        return extract_data_with_openai(pdf_text, api_key)
+        # Use specified model or default
+        openai_model = model if model else OPENAI_MODEL_DEFAULT
+        return extract_data_with_openai(pdf_text, api_key, openai_model)
     
     else:
         raise ValueError(f"Unknown AI provider: {provider}. Supported providers: 'openai', 'gemini'")

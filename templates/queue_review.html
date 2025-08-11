@@ -49,21 +49,22 @@
                     <div class="card-body">
                         <div class="alert alert-info">
                             <i class="fas fa-info-circle"></i>
-                            <strong>AI Provider Choice:</strong> Choose your AI provider for processing the selected reports. 
-                            Both OpenAI and Google Gemini support structured data extraction.
+                            <strong>AI Provider & Model Choice:</strong> Choose your AI provider and model for processing. 
+                            GPT-5-nano offers 8x lower cost and better accuracy than GPT-4.1-nano.
                         </div>
                         
                         <div class="row mb-3">
                             <div class="col-md-6">
                                 <label for="aiProviderSelect" class="form-label">
-                                    <i class="fas fa-robot"></i> AI Provider
+                                    <i class="fas fa-robot"></i> AI Provider & Model
                                 </label>
-                                <select class="form-select" id="aiProviderSelect">
-                                    <option value="openai" selected>OpenAI (GPT-4.1-nano)</option>
-                                    <option value="gemini">Google Gemini (2.5-flash)</option>
+                                <select class="form-select" id="aiProviderSelect" onchange="updateCostEstimate()">
+                                    <option value="openai_gpt5" selected data-cost="0.02">🆕 OpenAI GPT-5-nano (Recommended)</option>
+                                    <option value="openai_gpt41" data-cost="0.16">OpenAI GPT-4.1-nano (Legacy)</option>
+                                    <option value="gemini" data-cost="0.03">Google Gemini 2.5-flash</option>
                                 </select>
                                 <small class="text-muted">
-                                    Choose the AI provider for structured data extraction
+                                    <span id="costEstimate">~$0.02 per report</span> • <span id="modelDescription">Latest model with 45% fewer errors</span>
                                 </small>
                             </div>
                             <div class="col-md-6 d-flex align-items-end">
@@ -215,6 +216,29 @@ function getSelectedItemIds() {
     return selected;
 }
 
+function updateCostEstimate() {
+    const select = document.getElementById('aiProviderSelect');
+    const selectedOption = select.options[select.selectedIndex];
+    const cost = selectedOption.getAttribute('data-cost');
+    const costElement = document.getElementById('costEstimate');
+    const descElement = document.getElementById('modelDescription');
+    
+    if (costElement) {
+        costElement.textContent = `~$${cost} per report`;
+    }
+    
+    if (descElement) {
+        const value = selectedOption.value;
+        if (value === 'openai_gpt5') {
+            descElement.textContent = 'Latest model with 45% fewer errors';
+        } else if (value === 'openai_gpt41') {
+            descElement.textContent = 'Legacy model (8x more expensive)';
+        } else {
+            descElement.textContent = 'Google AI with native Pydantic support';
+        }
+    }
+}
+
 function approveSelected() {
     const selectedIds = getSelectedItemIds();
     if (selectedIds.length === 0) {
@@ -222,11 +246,42 @@ function approveSelected() {
         return;
     }
     
-    const aiProvider = document.getElementById('aiProviderSelect').value;
-    const providerName = aiProvider === 'openai' ? 'OpenAI' : 'Google Gemini';
+    const providerSelect = document.getElementById('aiProviderSelect').value;
+    let aiProvider, aiModel, providerName;
+    
+    switch(providerSelect) {
+        case 'openai_gpt5':
+            aiProvider = 'openai';
+            aiModel = 'gpt-5-nano';
+            providerName = 'OpenAI GPT-5-nano';
+            break;
+        case 'openai_gpt41':
+            aiProvider = 'openai';
+            aiModel = 'gpt-4.1-nano';
+            providerName = 'OpenAI GPT-4.1-nano';
+            break;
+        case 'gemini':
+            aiProvider = 'gemini';
+            aiModel = null;
+            providerName = 'Google Gemini 2.5-flash';
+            break;
+        default:
+            aiProvider = 'openai';
+            aiModel = 'gpt-5-nano';
+            providerName = 'OpenAI GPT-5-nano';
+    }
 
     if (!confirm(`Process ${selectedIds.length} selected reports using ${providerName} for AI extraction?`)) {
         return;
+    }
+
+    const requestBody = {
+        item_ids: selectedIds,
+        ai_provider: aiProvider
+    };
+    
+    if (aiModel) {
+        requestBody.ai_model = aiModel;
     }
 
     fetch('/api/queue/approve', {
@@ -234,10 +289,7 @@ function approveSelected() {
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-            item_ids: selectedIds,
-            ai_provider: aiProvider
-        })
+        body: JSON.stringify(requestBody)
     })
     .then(response => response.json())
     .then(data => {
@@ -293,6 +345,7 @@ function skipSelected() {
 document.addEventListener('DOMContentLoaded', function() {
     domReady = true;
     updateSelectedCount();
+    updateCostEstimate(); // Initialize cost display
 });
 </script>
 {% endblock %}

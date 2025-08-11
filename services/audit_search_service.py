@@ -109,8 +109,8 @@ class AuditSearchService:
             ScrapingQueue.status.in_(['pending_review', 'pending'])
         ).order_by(ScrapingQueue.created_at.desc()).all()
     
-    def approve_for_processing(self, item_ids, ai_provider="openai"):
-        """Approve selected items for full AI processing with specified provider."""
+    def approve_for_processing(self, item_ids, ai_provider="openai", ai_model=None):
+        """Approve selected items for full AI processing with specified provider and model."""
         approved_count = 0
         
         for item_id in item_ids:
@@ -122,10 +122,12 @@ class AuditSearchService:
             
             if item:
                 item.status = 'pending'
-                # Store AI provider preference in metadata
+                # Store AI provider and model preferences in metadata
                 if not item.document_metadata:
                     item.document_metadata = {}
                 item.document_metadata['ai_provider'] = ai_provider
+                if ai_model:
+                    item.document_metadata['ai_model'] = ai_model
                 approved_count += 1
         
         db.session.commit()

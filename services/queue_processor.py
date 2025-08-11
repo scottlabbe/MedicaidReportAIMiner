@@ -118,8 +118,13 @@ class QueueProcessor:
             # Calculate file hash
             file_hash = hashlib.sha256(pdf_content).hexdigest()
             
-            # Extract data with AI using specified provider
-            report_data, ai_log = extract_data_with_ai(extracted_text, provider=ai_provider)
+            # Get AI model from metadata if available
+            ai_model = None
+            if queue_item.document_metadata and 'ai_model' in queue_item.document_metadata:
+                ai_model = queue_item.document_metadata['ai_model']
+            
+            # Extract data with AI using specified provider and model
+            report_data, ai_log = extract_data_with_ai(extracted_text, provider=ai_provider, model=ai_model)
             
             # Create report object
             # Get the appropriate filename and URL based on source
