@@ -100,7 +100,7 @@
                     <ul class="pagination justify-content-center">
                         {% if reports.has_prev %}
                         <li class="page-item">
-                            <a class="page-link" href="{{ url_for('reports', page=reports.prev_num) }}">Previous</a>
+                            <a class="page-link" href="{{ url_for('reports', page=reports.prev_num, sort_by=sort_by, sort_dir=sort_dir) }}">Previous</a>
                         </li>
                         {% else %}
                         <li class="page-item disabled">
@@ -112,11 +112,11 @@
                             {% if page %}
                                 {% if page == reports.page %}
                                 <li class="page-item active">
-                                    <a class="page-link" href="{{ url_for('reports', page=page) }}">{{ page }}</a>
+                                    <a class="page-link" href="{{ url_for('reports', page=page, sort_by=sort_by, sort_dir=sort_dir) }}">{{ page }}</a>
                                 </li>
                                 {% else %}
                                 <li class="page-item">
-                                    <a class="page-link" href="{{ url_for('reports', page=page) }}">{{ page }}</a>
+                                    <a class="page-link" href="{{ url_for('reports', page=page, sort_by=sort_by, sort_dir=sort_dir) }}">{{ page }}</a>
                                 </li>
                                 {% endif %}
                             {% else %}
@@ -128,7 +128,7 @@
                         
                         {% if reports.has_next %}
                         <li class="page-item">
-                            <a class="page-link" href="{{ url_for('reports', page=reports.next_num) }}">Next</a>
+                            <a class="page-link" href="{{ url_for('reports', page=reports.next_num, sort_by=sort_by, sort_dir=sort_dir) }}">Next</a>
                         </li>
                         {% else %}
                         <li class="page-item disabled">
@@ -193,9 +193,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const urlParams = new URLSearchParams(window.location.search);
     const currentSort = urlParams.get('sort_by') || 'created_at';
     const currentDir = urlParams.get('sort_dir') || 'desc';
+    const currentPage = urlParams.get('page') || '1';
     
     // Update sort icons to show current state
     updateSortIcons(currentSort, currentDir);
+    
+    // Log current pagination state for debugging
+    console.log(`Current pagination state: sort_by=${currentSort}, sort_dir=${currentDir}, page=${currentPage}`);
     
     // Handle column sorting
     document.querySelectorAll('.sortable').forEach(header => {
@@ -209,8 +213,13 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             // Build new URL with sort parameters
-            const currentPage = urlParams.get('page') || '1';
-            const newUrl = `${window.location.pathname}?sort_by=${sortBy}&sort_dir=${sortDir}&page=${currentPage}`;
+            // Reset to page 1 when sorting by a new column, keep current page when toggling same column
+            let targetPage = '1';
+            if (sortBy === currentSort) {
+                // Same column - keep current page when toggling direction
+                targetPage = urlParams.get('page') || '1';
+            }
+            const newUrl = `${window.location.pathname}?sort_by=${sortBy}&sort_dir=${sortDir}&page=${targetPage}`;
             window.location.href = newUrl;
         });
     });
