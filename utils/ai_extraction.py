@@ -26,10 +26,13 @@ class ReportData(BaseModel):
     report_title: str = Field(
         ...,
         description=
-        "The full title of the audit report, converted to standard title case (e.g., 'Annual Audit Report') even if it appears in all caps in the source."
+        "Exact full report title in Title Case; no quotes, abbreviations, report numbers or surrounding labels."
     )
     audit_organization: str = Field(
-        ..., description="The organization that conducted the audit")
+        ...,
+        description=
+        "Full legal name of the auditing organization. No abbreviations or acronyms"
+    )
     publication_year: int = Field(
         ..., description="The year the report was published (4-digit)")
     publication_month: int = Field(
@@ -40,17 +43,17 @@ class ReportData(BaseModel):
     objectives: List[str] = Field(
         [],
         description=
-        "List of distinct audit objective texts. Each objective should be a separate string in the list."
+        "List of distinct audit objective texts. Each objective should be a separate string in the list; no numbering or labels."
     )
     findings: List[str] = Field(
         [],
         description=
-        "List of distinct audit finding texts. Each finding should be a separate string in the list."
+        "List of distinct audit finding texts. Each finding should be a separate string in the list.(no 'Finding 1:' prefixes, numbering, or headers)"
     )
     recommendations: List[str] = Field(
         [],
         description=
-        "List of distinct audit recommendation texts. Each recommendation should be a separate string in the list."
+        "List of distinct audit recommendation texts. Each recommendation should be a separate string in the list (no numbering or headers)."
     )
     overall_conclusion: Optional[str] = Field(
         None, description="The overall conclusion of the audit report")
@@ -58,13 +61,15 @@ class ReportData(BaseModel):
         ..., description="An AI-generated summary/insight about the report")
     potential_objective_summary: Optional[str] = Field(
         None,
-        description="An AI-generated audit objective to build on this report")
+        description=
+        "An AI-generated audit objective to build on the findings of this report to other relevant Medicaid audits"
+    )
     original_report_source_url: Optional[str] = Field(
         None, description="URL to the original report, if available")
     state: str = Field(
         ...,
         description=
-        "The US state code related to the report (e.g., 'NY', 'CA'). Use 'US' for federal agencies and nationwide reports."
+        "The US state code related to the agency who published report (e.g., 'NY', 'CA'). Use 'US' for federal agencies and nationwide reports."
     )
     audit_scope: str = Field(
         ...,
@@ -111,26 +116,16 @@ def extract_data_with_openai(pdf_text, api_key, model=OPENAI_MODEL_DEFAULT):
         Your task is to extract specific data points from the provided report text and format them according to the specified schema.
         Focus on accuracy and be as detailed as possible. If some information is not present in the text, leave those fields empty or null.
         
-        Important: For audit_scope, provide a comprehensive text description of the audit's scope. This may include time periods, 
-        programs examined, departments audited, or any other contextual information defining the boundaries of the audit.
-        
-        Always generate a potential_objective_summary that summarizes the main objectives of the audit in a concise paragraph.
+        Always generate a potential_objective_summary that builds on the reportt objectives of the audit for future audits in a concise paragraph.
         """
 
         # Prepare the user prompt
         user_prompt = f"""
         Please extract structured data from the following Medicaid audit report text. 
-        Make sure to include all findings, recommendations, and objectives mentioned in the report.
         For keywords, identify 5-10 relevant terms that best represent the report content.
-        Also provide an insightful summary about the report's significance and implications.
-        
-        For the audit_scope field, capture the full scope information including any dates, programs, 
-        or organizational boundaries mentioned in the report. Format this as a comprehensive text description.
-        
-        Be sure to include a potential_objective_summary that concisely summarizes the audit objectives.
         
         Here's the report text:
-        {pdf_text[:80000]}  # Limiting to first 50k characters for token limits
+        {pdf_text[:80000]}  # Limiting to first 80k characters for token limits
         
         If the report text is cut off, please extract as much information as possible from the provided text.
         """
