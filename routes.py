@@ -7,7 +7,7 @@ import traceback
 from flask import render_template, request, redirect, url_for, flash, jsonify, current_app
 from werkzeug.utils import secure_filename
 from app import db
-from models import Report, Finding, Recommendation, Objective, Keyword, AIProcessingLog
+from models import Report, Finding, Recommendation, Objective, Keyword, AIProcessingLog, KeywordMapping
 from utils.pdf_utils import (
     extract_text_from_pdf_memory,
     extract_keywords_from_pdf_metadata_memory,
@@ -624,6 +624,44 @@ def register_routes(app):
             }), 500
     
     # PDF serving endpoint removed as we no longer store PDFs on disk
+    
+    @app.route('/api/popular-keywords')
+    def api_popular_keywords():
+        """API endpoint to get the 25 most popular keywords with report counts"""
+        try:
+            # Get distinct canonical keywords with their report counts
+            popular_keywords = db.session.query(
+                KeywordMapping.canonical_keyword,
+                KeywordMapping.slug,
+                func.sum(KeywordMapping.report_count).label('total_reports')
+            ).group_by(
+                KeywordMapping.canonical_keyword, 
+                KeywordMapping.slug
+            ).order_by(
+                func.sum(KeywordMapping.report_count).desc()
+            ).limit(25).all()
+            
+            # Convert to JSON format
+            keywords_data = []
+            for keyword in popular_keywords:
+                keywords_data.append({
+                    'canonical_keyword': keyword.canonical_keyword,
+                    'slug': keyword.slug,
+                    'report_count': keyword.total_reports or 0
+                })
+            
+            return jsonify({
+                'success': True,
+                'popular_keywords': keywords_data,
+                'count': len(keywords_data)
+            })
+            
+        except Exception as e:
+            logging.error(f"Error fetching popular keywords: {e}")
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
     
     @app.route('/compare-chunks/<report_id>')
     def compare_chunks(report_id):

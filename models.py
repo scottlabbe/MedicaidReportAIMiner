@@ -206,3 +206,31 @@ class DuplicateCheck(db.Model):
     
     def __repr__(self):
         return f"<DuplicateCheck {self.id}: Queue {self.queue_item_id} -> Report {self.existing_report_id}>"
+
+
+class KeywordMapping(db.Model):
+    __tablename__ = 'keyword_mappings'
+    
+    id = Column(Integer, primary_key=True)
+    canonical_keyword = Column(String(100), nullable=False)
+    slug = Column(String(150), nullable=False, unique=True)
+    variation = Column(String(100), nullable=False)
+    report_count = Column(Integer, default=0)
+    popularity_score = Column(Float, default=0.0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'canonical_keyword': self.canonical_keyword,
+            'slug': self.slug,
+            'variation': self.variation,
+            'report_count': self.report_count,
+            'popularity_score': float(self.popularity_score) if self.popularity_score is not None else 0.0,
+            'created_at': self.created_at.isoformat() if self.created_at is not None else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at is not None else None
+        }
+    
+    def __repr__(self):
+        return f"<KeywordMapping {self.canonical_keyword}: {self.variation}>"
