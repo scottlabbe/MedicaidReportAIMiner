@@ -62,7 +62,7 @@ class ReportData(BaseModel):
     potential_objective_summary: Optional[str] = Field(
         None,
         description=
-        "An AI-generated audit objective to build on the findings of this report to other relevant Medicaid audits"
+        "An AI-generated summary of the audit objective, scope, and overall conclusion to build on the findings of this report to other relevant Medicaid audits"
     )
     original_report_source_url: Optional[str] = Field(
         None, description="URL to the original report, if available")
@@ -72,8 +72,7 @@ class ReportData(BaseModel):
         "The US state code related to the agency who published report (e.g., 'NY', 'CA'). Use 'US' for federal agencies and nationwide reports."
     )
     audit_scope: str = Field(
-        ...,
-        description="The scope of the audit, including only the time period.")
+        ..., description="The scope of the audit, including the time period.")
     extracted_keywords: List[str] = Field(
         [], description="Relevant keywords extracted from the report content")
 
@@ -122,8 +121,6 @@ def extract_data_with_openai(pdf_text, api_key, model=OPENAI_MODEL_DEFAULT):
         # Prepare the user prompt
         user_prompt = f"""
         Please extract structured data from the following Medicaid audit report text. 
-        For keywords, identify 5-10 relevant terms that best represent the report content.
-        
         Here's the report text:
         {pdf_text[:80000]}  # Limiting to first 80k characters for token limits
         
