@@ -19,10 +19,19 @@
                 <div class="card-body">
                     <h5 class="card-title">
                         <i class="fas fa-tags me-2"></i>
-                        Total Mappings
+                        Keyword Mappings
                     </h5>
-                    <h2 class="text-primary">{{ total_mappings|default(0) }}</h2>
-                    <p class="text-muted">Canonical keyword mappings in system</p>
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <h3 class="text-success mb-0">{{ active_mappings|default(0) }}</h3>
+                            <small class="text-muted">Active</small>
+                        </div>
+                        <div class="col-6">
+                            <h3 class="text-secondary mb-0">{{ hidden_mappings|default(0) }}</h3>
+                            <small class="text-muted">Hidden</small>
+                        </div>
+                    </div>
+                    <p class="text-muted">Total: {{ total_mappings|default(0) }} mappings</p>
                     <a href="{{ url_for('mapping_review_mappings') }}" class="btn btn-outline-primary">
                         <i class="fas fa-cog me-1"></i>
                         Manage Mappings

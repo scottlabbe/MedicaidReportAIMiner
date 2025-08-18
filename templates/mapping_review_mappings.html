@@ -38,7 +38,13 @@
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <div class="d-flex justify-content-end">
+                            <div class="d-flex justify-content-end align-items-center">
+                                <div class="form-check me-3">
+                                    <input class="form-check-input" type="checkbox" id="showHiddenToggle" onchange="toggleHiddenMappings()">
+                                    <label class="form-check-label" for="showHiddenToggle">
+                                        Show Hidden
+                                    </label>
+                                </div>
                                 <span class="badge bg-primary fs-6 me-3" id="total-count">Loading...</span>
                                 <button class="btn btn-success" onclick="loadMappings()">
                                     <i class="fas fa-sync-alt me-1"></i>
@@ -71,6 +77,7 @@
                                         <th>Canonical Keyword</th>
                                         <th>Variation</th>
                                         <th>Slug</th>
+                                        <th>Status</th>
                                         <th>Report Count</th>
                                         <th>Actions</th>
                                     </tr>
@@ -141,6 +148,7 @@
 <script>
 let currentPage = 1;
 let currentSearch = '';
+let includeHidden = false;
 
 function loadMappings(page = 1, search = '') {
     currentPage = page;
@@ -152,7 +160,8 @@ function loadMappings(page = 1, search = '') {
     
     const params = new URLSearchParams({
         page: page,
-        per_page: 50
+        per_page: 50,
+        include_hidden: includeHidden
     });
     
     if (search.trim()) {
@@ -187,12 +196,23 @@ function populateMappingsTable(mappings) {
     
     mappings.forEach(mapping => {
         const row = document.createElement('tr');
+        const statusBadge = mapping.hidden ? '<span class="badge bg-secondary">Hidden</span>' : '<span class="badge bg-success">Active</span>';
+        const visibilityButton = mapping.hidden 
+            ? `<button class="btn btn-outline-success btn-sm me-1" onclick="toggleVisibility(${mapping.id}, '${mapping.variation}')" title="Unhide mapping">
+                   <i class="fas fa-eye"></i>
+               </button>`
+            : `<button class="btn btn-outline-secondary btn-sm me-1" onclick="toggleVisibility(${mapping.id}, '${mapping.variation}')" title="Hide mapping">
+                   <i class="fas fa-eye-slash"></i>
+               </button>`;
+        
         row.innerHTML = `
             <td><strong>${mapping.canonical_keyword}</strong></td>
             <td>${mapping.variation}</td>
             <td><code>${mapping.slug}</code></td>
+            <td>${statusBadge}</td>
             <td><span class="badge bg-info">${mapping.report_count}</span></td>
             <td>
+                ${visibilityButton}
                 <button class="btn btn-outline-primary btn-sm me-1" onclick="editMapping(${mapping.id}, '${mapping.canonical_keyword}', '${mapping.variation}', '${mapping.slug}', ${mapping.report_count})">
                     <i class="fas fa-edit"></i>
                 </button>
@@ -236,6 +256,34 @@ function updatePagination(pagination) {
 function searchMappings() {
     const searchTerm = document.getElementById('search-input').value;
     loadMappings(1, searchTerm);
+}
+
+function toggleHiddenMappings() {
+    includeHidden = document.getElementById('showHiddenToggle').checked;
+    loadMappings(1, currentSearch);
+}
+
+function toggleVisibility(id, variation) {
+    if (!confirm(`Are you sure you want to toggle visibility for "${variation}"?`)) {
+        return;
+    }
+    
+    fetch(`/api/mapping-review/mapping/${id}/toggle-visibility`, {
+        method: 'PUT'
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            alert(result.message);
+            loadMappings(currentPage, currentSearch); // Refresh current view
+        } else {
+            alert('Error toggling mapping visibility: ' + result.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error toggling mapping visibility:', error);
+        alert('Error toggling mapping visibility');
+    });
 }
 
 function editMapping(id, canonicalKeyword, variation, slug, reportCount) {

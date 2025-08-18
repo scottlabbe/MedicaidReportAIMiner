@@ -217,6 +217,7 @@ class KeywordMapping(db.Model):
     variation = Column(String(100), nullable=False)
     report_count = Column(Integer, default=0)
     popularity_score = Column(Float, default=0.0)
+    hidden = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -228,6 +229,7 @@ class KeywordMapping(db.Model):
             'variation': self.variation,
             'report_count': self.report_count,
             'popularity_score': float(self.popularity_score) if self.popularity_score is not None else 0.0,
+            'hidden': self.hidden,
             'created_at': self.created_at.isoformat() if self.created_at is not None else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at is not None else None
         }

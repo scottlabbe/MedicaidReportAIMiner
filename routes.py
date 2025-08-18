@@ -630,11 +630,13 @@ def register_routes(app):
     def api_popular_keywords():
         """API endpoint to get the 25 most popular keywords with report counts"""
         try:
-            # Get distinct canonical keywords with their report counts
+            # Get distinct canonical keywords with their report counts (exclude hidden)
             popular_keywords = db.session.query(
                 KeywordMapping.canonical_keyword,
                 KeywordMapping.slug,
                 func.sum(KeywordMapping.report_count).label('total_reports')
+            ).filter(
+                KeywordMapping.hidden == False
             ).group_by(
                 KeywordMapping.canonical_keyword, 
                 KeywordMapping.slug
@@ -666,9 +668,9 @@ def register_routes(app):
 
     @app.route('/api/mapping-review/unmatched')
     def api_unmatched_keywords():
-        """API endpoint to get keywords without mappings"""
+        """API endpoint to get keywords without mappings (excluding those with hidden mappings)"""
         try:
-            # Find keywords that exist in reports but have no mapping
+            # Find keywords that exist in reports but have no mapping (or only hidden mappings)
             unmatched = db.session.query(
                 Keyword.keyword_text,
                 func.count(Report.id).label('report_count')
@@ -677,7 +679,10 @@ def register_routes(app):
             ).join(
                 Report, report_keywords_association.c.report_id == Report.id
             ).outerjoin(
-                KeywordMapping, func.lower(Keyword.keyword_text) == func.lower(KeywordMapping.variation)
+                KeywordMapping, db.and_(
+                    func.lower(Keyword.keyword_text) == func.lower(KeywordMapping.variation),
+                    KeywordMapping.hidden == False
+                )
             ).filter(
                 Report.hidden == False,
                 KeywordMapping.id.is_(None)
@@ -715,8 +720,13 @@ def register_routes(app):
             page = int(request.args.get('page', 1))
             per_page = int(request.args.get('per_page', 50))
             search = request.args.get('search', '').strip()
+            include_hidden = request.args.get('include_hidden', 'false').lower() == 'true'
             
             query = KeywordMapping.query
+            
+            # Filter by hidden status
+            if not include_hidden:
+                query = query.filter(KeywordMapping.hidden == False)
             
             # Apply search filter if provided
             if search:
@@ -747,7 +757,8 @@ def register_routes(app):
                     'canonical_keyword': mapping.canonical_keyword,
                     'slug': mapping.slug,
                     'variation': mapping.variation,
-                    'report_count': mapping.report_count or 0
+                    'report_count': mapping.report_count or 0,
+                    'hidden': mapping.hidden
                 })
             
             return jsonify({
@@ -831,7 +842,8 @@ def register_routes(app):
                     'canonical_keyword': mapping.canonical_keyword,
                     'slug': mapping.slug,
                     'variation': mapping.variation,
-                    'report_count': mapping.report_count
+                    'report_count': mapping.report_count,
+                    'hidden': mapping.hidden
                 }
             })
             
@@ -893,7 +905,8 @@ def register_routes(app):
                     'canonical_keyword': mapping.canonical_keyword,
                     'slug': mapping.slug,
                     'variation': mapping.variation,
-                    'report_count': mapping.report_count
+                    'report_count': mapping.report_count,
+                    'hidden': mapping.hidden
                 }
             })
             
@@ -927,12 +940,46 @@ def register_routes(app):
                 'error': str(e)
             }), 500
 
+    @app.route('/api/mapping-review/mapping/<int:mapping_id>/toggle-visibility', methods=['PUT'])
+    def api_toggle_mapping_visibility(mapping_id):
+        """API endpoint to toggle keyword mapping visibility (hide/unhide)"""
+        try:
+            mapping = KeywordMapping.query.get_or_404(mapping_id)
+            
+            # Toggle the hidden status
+            mapping.hidden = not mapping.hidden
+            db.session.commit()
+            
+            status = "hidden" if mapping.hidden else "active"
+            return jsonify({
+                'success': True,
+                'message': f'Mapping "{mapping.variation}" is now {status}',
+                'mapping': {
+                    'id': mapping.id,
+                    'canonical_keyword': mapping.canonical_keyword,
+                    'slug': mapping.slug,
+                    'variation': mapping.variation,
+                    'report_count': mapping.report_count,
+                    'hidden': mapping.hidden
+                }
+            })
+            
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Error toggling mapping visibility: {e}")
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+
     # Frontend routes for mapping review
     @app.route('/mapping-review')
     def mapping_review_dashboard():
         """Mapping review dashboard page"""
         # Get summary statistics
         total_mappings = KeywordMapping.query.count()
+        active_mappings = KeywordMapping.query.filter(KeywordMapping.hidden == False).count()
+        hidden_mappings = KeywordMapping.query.filter(KeywordMapping.hidden == True).count()
         
         # Count unmatched keywords
         unmatched_count = db.session.query(func.count(Keyword.keyword_text.distinct())).join(
@@ -940,7 +987,10 @@ def register_routes(app):
         ).join(
             Report, report_keywords_association.c.report_id == Report.id
         ).outerjoin(
-            KeywordMapping, func.lower(Keyword.keyword_text) == func.lower(KeywordMapping.variation)
+            KeywordMapping, db.and_(
+                func.lower(Keyword.keyword_text) == func.lower(KeywordMapping.variation),
+                KeywordMapping.hidden == False
+            )
         ).filter(
             Report.hidden == False,
             KeywordMapping.id.is_(None)
@@ -948,6 +998,8 @@ def register_routes(app):
         
         return render_template('mapping_review_dashboard.html',
                              total_mappings=total_mappings,
+                             active_mappings=active_mappings,
+                             hidden_mappings=hidden_mappings,
                              unmatched_count=unmatched_count)
 
     @app.route('/mapping-review/unmatched')
