@@ -89,12 +89,12 @@
                         </div>
                         <div class="col-md-4 mb-3">
                             <div class="d-grid">
-                                <a href="{{ url_for('api_popular_keywords') }}" class="btn btn-outline-info btn-lg" target="_blank">
-                                    <i class="fas fa-chart-bar me-2"></i>
-                                    View Popular Keywords API
-                                </a>
+                                <button class="btn btn-outline-success btn-lg" onclick="refreshReportCounts()">
+                                    <i class="fas fa-sync-alt me-2"></i>
+                                    Refresh Report Counts
+                                </button>
                             </div>
-                            <small class="text-muted">Check the popular keywords API endpoint</small>
+                            <small class="text-muted">Recalculate report counts for all mappings</small>
                         </div>
                     </div>
                 </div>
@@ -102,4 +102,43 @@
         </div>
     </div>
 </div>
+
+<script>
+function refreshReportCounts() {
+    if (!confirm('This will recalculate report counts for all keyword mappings. This may take a few minutes. Continue?')) {
+        return;
+    }
+    
+    const button = event.target;
+    const originalText = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Refreshing...';
+    
+    fetch('/api/mapping-review/refresh-counts', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(result => {
+        button.disabled = false;
+        button.innerHTML = originalText;
+        
+        if (result.success) {
+            alert(`Success! Updated ${result.mappings_updated} of ${result.total_mappings} mappings.\n\n${result.message}`);
+            // Optionally reload the page to show updated stats
+            window.location.reload();
+        } else {
+            alert('Error refreshing report counts: ' + result.error);
+        }
+    })
+    .catch(error => {
+        button.disabled = false;
+        button.innerHTML = originalText;
+        console.error('Error refreshing report counts:', error);
+        alert('Error refreshing report counts');
+    });
+}
+</script>
 {% endblock %}

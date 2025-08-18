@@ -959,6 +959,48 @@ def register_routes(app):
     def mapping_review_mappings():
         """Mapping management page"""
         return render_template('mapping_review_mappings.html')
+
+    @app.route('/api/mapping-review/refresh-counts', methods=['POST'])
+    def api_refresh_report_counts():
+        """API endpoint to recalculate all report counts for keyword mappings"""
+        try:
+            # Get all mappings
+            mappings = KeywordMapping.query.all()
+            updated_count = 0
+            
+            for mapping in mappings:
+                # Calculate current report count for this variation
+                current_count = db.session.query(func.count(Report.id.distinct())).join(
+                    report_keywords_association, Report.id == report_keywords_association.c.report_id
+                ).join(
+                    Keyword, report_keywords_association.c.keyword_id == Keyword.id
+                ).filter(
+                    Report.hidden == False,
+                    func.lower(Keyword.keyword_text) == func.lower(mapping.variation)
+                ).scalar() or 0
+                
+                # Update if count has changed
+                if current_count != mapping.report_count:
+                    mapping.report_count = current_count
+                    updated_count += 1
+            
+            # Commit all changes
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': f'Refreshed report counts for {len(mappings)} mappings',
+                'mappings_updated': updated_count,
+                'total_mappings': len(mappings)
+            })
+            
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Error refreshing report counts: {e}")
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
     
     @app.route('/compare-chunks/<report_id>')
     def compare_chunks(report_id):
