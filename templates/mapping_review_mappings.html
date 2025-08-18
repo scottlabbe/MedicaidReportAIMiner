@@ -1,0 +1,327 @@
+{% extends "layout.html" %}
+
+{% block title %}Keyword Mappings Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('mapping_review_dashboard') }}">Mapping Review</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Mappings Management</li>
+                </ol>
+            </nav>
+            
+            <div class="page-header mb-4">
+                <h1 class="h2">Keyword Mappings Management</h1>
+                <p class="text-muted">Search, edit, and manage existing keyword mappings</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-search"></i>
+                                </span>
+                                <input type="text" class="form-control" id="search-input" 
+                                       placeholder="Search mappings by keyword, variation, or slug...">
+                                <button class="btn btn-outline-secondary" type="button" onclick="searchMappings()">
+                                    Search
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex justify-content-end">
+                                <span class="badge bg-primary fs-6 me-3" id="total-count">Loading...</span>
+                                <button class="btn btn-success" onclick="loadMappings()">
+                                    <i class="fas fa-sync-alt me-1"></i>
+                                    Refresh
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div id="loading-spinner" class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <div class="mt-3">Loading mappings...</div>
+                    </div>
+
+                    <div id="mappings-table-container" style="display: none;">
+                        <div class="table-responsive">
+                            <table class="table table-striped" id="mappings-table">
+                                <thead>
+                                    <tr>
+                                        <th>Canonical Keyword</th>
+                                        <th>Variation</th>
+                                        <th>Slug</th>
+                                        <th>Report Count</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Data loaded via JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <nav aria-label="Pagination" id="pagination-nav">
+                            <ul class="pagination justify-content-center" id="pagination">
+                                <!-- Pagination loaded via JavaScript -->
+                            </ul>
+                        </nav>
+                    </div>
+
+                    <div id="no-mappings" style="display: none;" class="text-center py-5">
+                        <div class="text-muted">
+                            <i class="fas fa-search fa-3x mb-3"></i>
+                            <h4>No mappings found</h4>
+                            <p>Try adjusting your search criteria</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Mapping Modal -->
+<div class="modal fade" id="editMappingModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Keyword Mapping</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editMappingForm">
+                    <input type="hidden" id="editMappingId">
+                    <div class="mb-3">
+                        <label for="editCanonicalKeyword" class="form-label">Canonical Keyword *</label>
+                        <input type="text" class="form-control" id="editCanonicalKeyword" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editVariation" class="form-label">Variation *</label>
+                        <input type="text" class="form-control" id="editVariation" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editSlug" class="form-label">URL Slug *</label>
+                        <input type="text" class="form-control" id="editSlug" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editReportCount" class="form-label">Report Count</label>
+                        <input type="number" class="form-control" id="editReportCount" readonly>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveMapping()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentPage = 1;
+let currentSearch = '';
+
+function loadMappings(page = 1, search = '') {
+    currentPage = page;
+    currentSearch = search;
+    
+    document.getElementById('loading-spinner').style.display = 'block';
+    document.getElementById('mappings-table-container').style.display = 'none';
+    document.getElementById('no-mappings').style.display = 'none';
+    
+    const params = new URLSearchParams({
+        page: page,
+        per_page: 50
+    });
+    
+    if (search.trim()) {
+        params.append('search', search);
+    }
+    
+    fetch('/api/mapping-review/mappings?' + params)
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('loading-spinner').style.display = 'none';
+            
+            if (data.success && data.mappings.length > 0) {
+                document.getElementById('total-count').textContent = data.pagination.total + ' mappings';
+                populateMappingsTable(data.mappings);
+                updatePagination(data.pagination);
+                document.getElementById('mappings-table-container').style.display = 'block';
+            } else {
+                document.getElementById('total-count').textContent = '0 mappings';
+                document.getElementById('no-mappings').style.display = 'block';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading mappings:', error);
+            document.getElementById('loading-spinner').style.display = 'none';
+            alert('Error loading mappings');
+        });
+}
+
+function populateMappingsTable(mappings) {
+    const tbody = document.querySelector('#mappings-table tbody');
+    tbody.innerHTML = '';
+    
+    mappings.forEach(mapping => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td><strong>${mapping.canonical_keyword}</strong></td>
+            <td>${mapping.variation}</td>
+            <td><code>${mapping.slug}</code></td>
+            <td><span class="badge bg-info">${mapping.report_count}</span></td>
+            <td>
+                <button class="btn btn-outline-primary btn-sm me-1" onclick="editMapping(${mapping.id}, '${mapping.canonical_keyword}', '${mapping.variation}', '${mapping.slug}', ${mapping.report_count})">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn btn-outline-danger btn-sm" onclick="deleteMapping(${mapping.id}, '${mapping.variation}')">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+function updatePagination(pagination) {
+    const paginationElement = document.getElementById('pagination');
+    paginationElement.innerHTML = '';
+    
+    // Previous button
+    const prevLi = document.createElement('li');
+    prevLi.className = 'page-item' + (pagination.has_prev ? '' : ' disabled');
+    prevLi.innerHTML = `<a class="page-link" href="#" onclick="loadMappings(${pagination.page - 1}, '${currentSearch}')">Previous</a>`;
+    paginationElement.appendChild(prevLi);
+    
+    // Page numbers
+    const startPage = Math.max(1, pagination.page - 2);
+    const endPage = Math.min(pagination.pages, pagination.page + 2);
+    
+    for (let i = startPage; i <= endPage; i++) {
+        const li = document.createElement('li');
+        li.className = 'page-item' + (i === pagination.page ? ' active' : '');
+        li.innerHTML = `<a class="page-link" href="#" onclick="loadMappings(${i}, '${currentSearch}')">${i}</a>`;
+        paginationElement.appendChild(li);
+    }
+    
+    // Next button
+    const nextLi = document.createElement('li');
+    nextLi.className = 'page-item' + (pagination.has_next ? '' : ' disabled');
+    nextLi.innerHTML = `<a class="page-link" href="#" onclick="loadMappings(${pagination.page + 1}, '${currentSearch}')">Next</a>`;
+    paginationElement.appendChild(nextLi);
+}
+
+function searchMappings() {
+    const searchTerm = document.getElementById('search-input').value;
+    loadMappings(1, searchTerm);
+}
+
+function editMapping(id, canonicalKeyword, variation, slug, reportCount) {
+    document.getElementById('editMappingId').value = id;
+    document.getElementById('editCanonicalKeyword').value = canonicalKeyword;
+    document.getElementById('editVariation').value = variation;
+    document.getElementById('editSlug').value = slug;
+    document.getElementById('editReportCount').value = reportCount;
+    
+    const modal = new bootstrap.Modal(document.getElementById('editMappingModal'));
+    modal.show();
+}
+
+function saveMapping() {
+    const id = document.getElementById('editMappingId').value;
+    const canonicalKeyword = document.getElementById('editCanonicalKeyword').value.trim();
+    const variation = document.getElementById('editVariation').value.trim();
+    const slug = document.getElementById('editSlug').value.trim();
+    
+    if (!canonicalKeyword || !variation || !slug) {
+        alert('All fields are required');
+        return;
+    }
+    
+    const data = {
+        canonical_keyword: canonicalKeyword,
+        variation: variation,
+        slug: slug
+    };
+    
+    fetch(`/api/mapping-review/mapping/${id}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            alert('Mapping updated successfully!');
+            bootstrap.Modal.getInstance(document.getElementById('editMappingModal')).hide();
+            loadMappings(currentPage, currentSearch); // Refresh current view
+        } else {
+            alert('Error updating mapping: ' + result.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error updating mapping:', error);
+        alert('Error updating mapping');
+    });
+}
+
+function deleteMapping(id, variation) {
+    if (!confirm(`Are you sure you want to delete the mapping for "${variation}"?`)) {
+        return;
+    }
+    
+    fetch(`/api/mapping-review/mapping/${id}`, {
+        method: 'DELETE'
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            alert('Mapping deleted successfully!');
+            loadMappings(currentPage, currentSearch); // Refresh current view
+        } else {
+            alert('Error deleting mapping: ' + result.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error deleting mapping:', error);
+        alert('Error deleting mapping');
+    });
+}
+
+// Search on Enter key
+document.getElementById('search-input').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        searchMappings();
+    }
+});
+
+// Load data when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    loadMappings();
+});
+</script>
+{% endblock %}

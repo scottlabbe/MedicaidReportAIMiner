@@ -56,6 +56,11 @@
                                 <i class="fas fa-list-check me-1"></i> Review Queue
                             </a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.path.startswith(url_for('mapping_review_dashboard')) %}active{% endif %}" href="{{ url_for('mapping_review_dashboard') }}">
+                                <i class="fas fa-tags me-1"></i> Keyword Mapping
+                            </a>
+                        </li>
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle {% if request.path == url_for('parse_review') or request.path == url_for('compare_upload') %}active{% endif %}" 
                                href="#" id="pdfToolsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">

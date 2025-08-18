@@ -4,10 +4,11 @@ import json
 import hashlib
 import logging
 import traceback
+import re
 from flask import render_template, request, redirect, url_for, flash, jsonify, current_app
 from werkzeug.utils import secure_filename
 from app import db
-from models import Report, Finding, Recommendation, Objective, Keyword, AIProcessingLog, KeywordMapping
+from models import Report, Finding, Recommendation, Objective, Keyword, AIProcessingLog, KeywordMapping, report_keywords_association
 from utils.pdf_utils import (
     extract_text_from_pdf_memory,
     extract_keywords_from_pdf_metadata_memory,
@@ -662,6 +663,302 @@ def register_routes(app):
                 'success': False,
                 'error': str(e)
             }), 500
+
+    @app.route('/api/mapping-review/unmatched')
+    def api_unmatched_keywords():
+        """API endpoint to get keywords without mappings"""
+        try:
+            # Find keywords that exist in reports but have no mapping
+            unmatched = db.session.query(
+                Keyword.keyword_text,
+                func.count(Report.id).label('report_count')
+            ).join(
+                report_keywords_association, Keyword.id == report_keywords_association.c.keyword_id
+            ).join(
+                Report, report_keywords_association.c.report_id == Report.id
+            ).outerjoin(
+                KeywordMapping, func.lower(Keyword.keyword_text) == func.lower(KeywordMapping.variation)
+            ).filter(
+                Report.hidden == False,
+                KeywordMapping.id.is_(None)
+            ).group_by(
+                Keyword.keyword_text
+            ).order_by(
+                func.count(Report.id).desc()
+            ).all()
+            
+            # Convert to JSON format
+            unmatched_data = []
+            for keyword in unmatched:
+                unmatched_data.append({
+                    'keyword_text': keyword.keyword_text,
+                    'report_count': keyword.report_count
+                })
+            
+            return jsonify({
+                'success': True,
+                'unmatched_keywords': unmatched_data,
+                'count': len(unmatched_data)
+            })
+            
+        except Exception as e:
+            logging.error(f"Error fetching unmatched keywords: {e}")
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+
+    @app.route('/api/mapping-review/mappings')
+    def api_keyword_mappings():
+        """API endpoint to get all keyword mappings with pagination and search"""
+        try:
+            page = int(request.args.get('page', 1))
+            per_page = int(request.args.get('per_page', 50))
+            search = request.args.get('search', '').strip()
+            
+            query = KeywordMapping.query
+            
+            # Apply search filter if provided
+            if search:
+                search_filter = f"%{search}%"
+                query = query.filter(
+                    db.or_(
+                        KeywordMapping.canonical_keyword.ilike(search_filter),
+                        KeywordMapping.variation.ilike(search_filter),
+                        KeywordMapping.slug.ilike(search_filter)
+                    )
+                )
+            
+            # Get paginated results
+            mappings = query.order_by(
+                KeywordMapping.report_count.desc(),
+                KeywordMapping.canonical_keyword
+            ).paginate(
+                page=page, 
+                per_page=per_page,
+                error_out=False
+            )
+            
+            # Convert to JSON format
+            mappings_data = []
+            for mapping in mappings.items:
+                mappings_data.append({
+                    'id': mapping.id,
+                    'canonical_keyword': mapping.canonical_keyword,
+                    'slug': mapping.slug,
+                    'variation': mapping.variation,
+                    'report_count': mapping.report_count or 0
+                })
+            
+            return jsonify({
+                'success': True,
+                'mappings': mappings_data,
+                'pagination': {
+                    'page': mappings.page,
+                    'pages': mappings.pages,
+                    'per_page': mappings.per_page,
+                    'total': mappings.total,
+                    'has_prev': mappings.has_prev,
+                    'has_next': mappings.has_next
+                }
+            })
+            
+        except Exception as e:
+            logging.error(f"Error fetching keyword mappings: {e}")
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+
+    @app.route('/api/mapping-review/mapping', methods=['POST'])
+    def api_create_mapping():
+        """API endpoint to create new keyword mapping"""
+        try:
+            data = request.get_json()
+            
+            # Validate required fields
+            canonical_keyword = data.get('canonical_keyword', '').strip()
+            variation = data.get('variation', '').strip()
+            
+            if not canonical_keyword or not variation:
+                return jsonify({
+                    'success': False,
+                    'error': 'canonical_keyword and variation are required'
+                }), 400
+            
+            # Generate slug from canonical keyword if not provided
+            slug = data.get('slug', '').strip()
+            if not slug:
+                slug = canonical_keyword.lower().replace(' ', '-').replace('&', 'and')
+                # Remove special characters except hyphens
+                import re
+                slug = re.sub(r'[^a-z0-9\-]', '', slug)
+                slug = re.sub(r'\-+', '-', slug).strip('-')
+            
+            # Check if slug already exists
+            existing_slug = KeywordMapping.query.filter_by(slug=slug).first()
+            if existing_slug:
+                return jsonify({
+                    'success': False,
+                    'error': f'Slug "{slug}" already exists'
+                }), 400
+            
+            # Calculate report count for this variation
+            report_count = db.session.query(func.count(Report.id.distinct())).join(
+                report_keywords_association, Report.id == report_keywords_association.c.report_id
+            ).join(
+                Keyword, report_keywords_association.c.keyword_id == Keyword.id
+            ).filter(
+                Report.hidden == False,
+                func.lower(Keyword.keyword_text) == func.lower(variation)
+            ).scalar() or 0
+            
+            # Create new mapping
+            mapping = KeywordMapping(
+                canonical_keyword=canonical_keyword,
+                slug=slug,
+                variation=variation,
+                report_count=report_count
+            )
+            
+            db.session.add(mapping)
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'mapping': {
+                    'id': mapping.id,
+                    'canonical_keyword': mapping.canonical_keyword,
+                    'slug': mapping.slug,
+                    'variation': mapping.variation,
+                    'report_count': mapping.report_count
+                }
+            })
+            
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Error creating keyword mapping: {e}")
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+
+    @app.route('/api/mapping-review/mapping/<int:mapping_id>', methods=['PUT'])
+    def api_update_mapping(mapping_id):
+        """API endpoint to update existing keyword mapping"""
+        try:
+            mapping = KeywordMapping.query.get_or_404(mapping_id)
+            data = request.get_json()
+            
+            # Validate and update fields
+            canonical_keyword = data.get('canonical_keyword', '').strip()
+            variation = data.get('variation', '').strip()
+            slug = data.get('slug', '').strip()
+            
+            if canonical_keyword:
+                mapping.canonical_keyword = canonical_keyword
+            if variation:
+                # Recalculate report count if variation changed
+                if variation != mapping.variation:
+                    report_count = db.session.query(func.count(Report.id.distinct())).join(
+                        report_keywords_association, Report.id == report_keywords_association.c.report_id
+                    ).join(
+                        Keyword, report_keywords_association.c.keyword_id == Keyword.id
+                    ).filter(
+                        Report.hidden == False,
+                        func.lower(Keyword.keyword_text) == func.lower(variation)
+                    ).scalar() or 0
+                    mapping.report_count = report_count
+                
+                mapping.variation = variation
+            
+            if slug and slug != mapping.slug:
+                # Check if new slug already exists
+                existing_slug = KeywordMapping.query.filter_by(slug=slug).filter(
+                    KeywordMapping.id != mapping_id
+                ).first()
+                if existing_slug:
+                    return jsonify({
+                        'success': False,
+                        'error': f'Slug "{slug}" already exists'
+                    }), 400
+                mapping.slug = slug
+            
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'mapping': {
+                    'id': mapping.id,
+                    'canonical_keyword': mapping.canonical_keyword,
+                    'slug': mapping.slug,
+                    'variation': mapping.variation,
+                    'report_count': mapping.report_count
+                }
+            })
+            
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Error updating keyword mapping: {e}")
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+
+    @app.route('/api/mapping-review/mapping/<int:mapping_id>', methods=['DELETE'])
+    def api_delete_mapping(mapping_id):
+        """API endpoint to delete keyword mapping"""
+        try:
+            mapping = KeywordMapping.query.get_or_404(mapping_id)
+            
+            db.session.delete(mapping)
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': f'Mapping for "{mapping.variation}" deleted successfully'
+            })
+            
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Error deleting keyword mapping: {e}")
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+
+    # Frontend routes for mapping review
+    @app.route('/mapping-review')
+    def mapping_review_dashboard():
+        """Mapping review dashboard page"""
+        # Get summary statistics
+        total_mappings = KeywordMapping.query.count()
+        
+        # Count unmatched keywords
+        unmatched_count = db.session.query(func.count(Keyword.keyword_text.distinct())).join(
+            report_keywords_association, Keyword.id == report_keywords_association.c.keyword_id
+        ).join(
+            Report, report_keywords_association.c.report_id == Report.id
+        ).outerjoin(
+            KeywordMapping, func.lower(Keyword.keyword_text) == func.lower(KeywordMapping.variation)
+        ).filter(
+            Report.hidden == False,
+            KeywordMapping.id.is_(None)
+        ).scalar() or 0
+        
+        return render_template('mapping_review_dashboard.html',
+                             total_mappings=total_mappings,
+                             unmatched_count=unmatched_count)
+
+    @app.route('/mapping-review/unmatched')
+    def mapping_review_unmatched():
+        """Unmatched keywords review page"""
+        return render_template('mapping_review_unmatched.html')
+
+    @app.route('/mapping-review/mappings')
+    def mapping_review_mappings():
+        """Mapping management page"""
+        return render_template('mapping_review_mappings.html')
     
     @app.route('/compare-chunks/<report_id>')
     def compare_chunks(report_id):

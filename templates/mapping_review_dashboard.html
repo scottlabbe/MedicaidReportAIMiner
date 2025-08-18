@@ -1,0 +1,105 @@
+{% extends "layout.html" %}
+
+{% block title %}Keyword Mapping Review - Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="page-header mb-4">
+                <h1 class="h2">Keyword Mapping Review</h1>
+                <p class="text-muted">Manage keyword mappings and review unmatched terms</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fas fa-tags me-2"></i>
+                        Total Mappings
+                    </h5>
+                    <h2 class="text-primary">{{ total_mappings|default(0) }}</h2>
+                    <p class="text-muted">Canonical keyword mappings in system</p>
+                    <a href="{{ url_for('mapping_review_mappings') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-cog me-1"></i>
+                        Manage Mappings
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Unmatched Keywords
+                    </h5>
+                    <h2 class="{% if unmatched_count > 0 %}text-warning{% else %}text-success{% endif %}">
+                        {{ unmatched_count|default(0) }}
+                    </h2>
+                    <p class="text-muted">Keywords found in reports but not mapped</p>
+                    {% if unmatched_count > 0 %}
+                        <a href="{{ url_for('mapping_review_unmatched') }}" class="btn btn-warning">
+                            <i class="fas fa-eye me-1"></i>
+                            Review Unmatched
+                        </a>
+                    {% else %}
+                        <span class="text-success">
+                            <i class="fas fa-check-circle me-1"></i>
+                            All keywords mapped
+                        </span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Quick Actions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <div class="d-grid">
+                                <a href="{{ url_for('mapping_review_unmatched') }}" class="btn btn-outline-warning btn-lg">
+                                    <i class="fas fa-search me-2"></i>
+                                    Review Unmatched Keywords
+                                </a>
+                            </div>
+                            <small class="text-muted">Find and map keywords without canonical mappings</small>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="d-grid">
+                                <a href="{{ url_for('mapping_review_mappings') }}" class="btn btn-outline-primary btn-lg">
+                                    <i class="fas fa-edit me-2"></i>
+                                    Manage Mappings
+                                </a>
+                            </div>
+                            <small class="text-muted">Search, edit, and organize existing mappings</small>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="d-grid">
+                                <a href="{{ url_for('api_popular_keywords') }}" class="btn btn-outline-info btn-lg" target="_blank">
+                                    <i class="fas fa-chart-bar me-2"></i>
+                                    View Popular Keywords API
+                                </a>
+                            </div>
+                            <small class="text-muted">Check the popular keywords API endpoint</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,219 @@
+{% extends "layout.html" %}
+
+{% block title %}Unmatched Keywords Review{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('mapping_review_dashboard') }}">Mapping Review</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Unmatched Keywords</li>
+                </ol>
+            </nav>
+            
+            <div class="page-header mb-4">
+                <h1 class="h2">Unmatched Keywords Review</h1>
+                <p class="text-muted">Keywords found in reports that don't have canonical mappings</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="badge bg-warning fs-6" id="unmatched-count">Loading...</span>
+                            <span class="text-muted ms-2">unmatched keywords found</span>
+                        </div>
+                        <button class="btn btn-success" id="refresh-btn" onclick="loadUnmatchedKeywords()">
+                            <i class="fas fa-sync-alt me-1"></i>
+                            Refresh
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div id="loading-spinner" class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <div class="mt-3">Loading unmatched keywords...</div>
+                    </div>
+
+                    <div id="unmatched-table-container" style="display: none;">
+                        <div class="table-responsive">
+                            <table class="table table-striped" id="unmatched-table">
+                                <thead>
+                                    <tr>
+                                        <th>Keyword</th>
+                                        <th>Report Count</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Data loaded via JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div id="no-unmatched" style="display: none;" class="text-center py-5">
+                        <div class="text-success">
+                            <i class="fas fa-check-circle fa-3x mb-3"></i>
+                            <h4>All Keywords Mapped!</h4>
+                            <p class="text-muted">No unmatched keywords found. All keywords have canonical mappings.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Mapping Modal -->
+<div class="modal fade" id="createMappingModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Create Keyword Mapping</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="mappingForm">
+                    <div class="mb-3">
+                        <label for="keywordText" class="form-label">Keyword Text</label>
+                        <input type="text" class="form-control" id="keywordText" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label for="canonicalKeyword" class="form-label">Canonical Keyword *</label>
+                        <input type="text" class="form-control" id="canonicalKeyword" required>
+                        <div class="form-text">The standardized form of this keyword</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="slug" class="form-label">URL Slug</label>
+                        <input type="text" class="form-control" id="slug">
+                        <div class="form-text">Leave blank to auto-generate from canonical keyword</div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="createMapping()">Create Mapping</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentKeyword = '';
+
+function loadUnmatchedKeywords() {
+    document.getElementById('loading-spinner').style.display = 'block';
+    document.getElementById('unmatched-table-container').style.display = 'none';
+    document.getElementById('no-unmatched').style.display = 'none';
+    
+    fetch('/api/mapping-review/unmatched')
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('loading-spinner').style.display = 'none';
+            
+            if (data.success && data.unmatched_keywords.length > 0) {
+                document.getElementById('unmatched-count').textContent = data.count;
+                populateUnmatchedTable(data.unmatched_keywords);
+                document.getElementById('unmatched-table-container').style.display = 'block';
+            } else {
+                document.getElementById('unmatched-count').textContent = '0';
+                document.getElementById('no-unmatched').style.display = 'block';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading unmatched keywords:', error);
+            document.getElementById('loading-spinner').style.display = 'none';
+            alert('Error loading unmatched keywords');
+        });
+}
+
+function populateUnmatchedTable(keywords) {
+    const tbody = document.querySelector('#unmatched-table tbody');
+    tbody.innerHTML = '';
+    
+    keywords.forEach(keyword => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td><strong>${keyword.keyword_text}</strong></td>
+            <td><span class="badge bg-info">${keyword.report_count}</span></td>
+            <td>
+                <button class="btn btn-primary btn-sm" onclick="openMappingModal('${keyword.keyword_text}')">
+                    <i class="fas fa-plus me-1"></i>
+                    Create Mapping
+                </button>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+function openMappingModal(keywordText) {
+    currentKeyword = keywordText;
+    document.getElementById('keywordText').value = keywordText;
+    document.getElementById('canonicalKeyword').value = keywordText; // Pre-populate with same value
+    document.getElementById('slug').value = '';
+    
+    const modal = new bootstrap.Modal(document.getElementById('createMappingModal'));
+    modal.show();
+}
+
+function createMapping() {
+    const canonicalKeyword = document.getElementById('canonicalKeyword').value.trim();
+    const slug = document.getElementById('slug').value.trim();
+    
+    if (!canonicalKeyword) {
+        alert('Canonical keyword is required');
+        return;
+    }
+    
+    const data = {
+        canonical_keyword: canonicalKeyword,
+        variation: currentKeyword,
+        slug: slug
+    };
+    
+    fetch('/api/mapping-review/mapping', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            alert('Mapping created successfully!');
+            bootstrap.Modal.getInstance(document.getElementById('createMappingModal')).hide();
+            loadUnmatchedKeywords(); // Refresh the list
+        } else {
+            alert('Error creating mapping: ' + result.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error creating mapping:', error);
+        alert('Error creating mapping');
+    });
+}
+
+// Load data when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    loadUnmatchedKeywords();
+});
+</script>
+{% endblock %}
