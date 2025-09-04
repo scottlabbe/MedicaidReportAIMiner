@@ -141,9 +141,9 @@ Thumbs.db
 uploads/
 temp_pdfs/
 
-# Replit specific files (keep these tracked)
-# .replit - keep this
-# replit.nix - keep this if it exists
+# Replit specific files
+.replit - 
+.replit.nix - 
 
 # AI model cache files
 .cache/
