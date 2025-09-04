@@ -8,10 +8,11 @@ from instructor import Mode
 from typing import List, Optional
 from pydantic import BaseModel, Field
 from openai import OpenAI
+from utils.token_usage_logger import TokenUsageLogger
 
-# OpenAI model options - GPT-5-nano is now recommended for better performance and 8x lower cost
+# OpenAI model options
 OPENAI_MODEL_GPT41_NANO = "gpt-4.1-nano"  # Legacy model
-OPENAI_MODEL_GPT5_NANO = "gpt-5-nano"  # New recommended model
+OPENAI_MODEL_GPT5_NANO = "gpt-5-nano"  # New model
 OPENAI_MODEL_DEFAULT = OPENAI_MODEL_GPT5_NANO  # Default to latest model
 
 # Import Gemini extraction function for AI provider choice
@@ -149,10 +150,37 @@ def extract_data_with_openai(pdf_text, api_key, model=OPENAI_MODEL_DEFAULT):
 
         response = client.chat.completions.create(**api_params)
 
-        # Print raw AI response to console
-        print("\n=== RAW AI EXTRACTION RESPONSE ===")
-        print(response)
-        print("=== END OF RAW AI EXTRACTION RESPONSE ===\n")
+        # Access the actual token usage from the raw OpenAI response
+        # When using instructor, the raw response is stored in _raw_response
+        actual_usage = None
+        if hasattr(response, '_raw_response'):
+            # Instructor wraps the response, access the original
+            raw_response = response._raw_response
+            if hasattr(raw_response, 'usage'):
+                actual_usage = raw_response.usage
+                # Log actual token usage
+                TokenUsageLogger.log_extraction(
+                    provider="OpenAI",
+                    model=model,
+                    input_tokens=actual_usage.prompt_tokens,
+                    output_tokens=actual_usage.completion_tokens,
+                    total_tokens=actual_usage.total_tokens,
+                    input_cost=0,  # Will be calculated below
+                    output_cost=0,  # Will be calculated below
+                    total_cost=0,  # Will be calculated below
+                    processing_time_ms=0,  # Will be set below
+                    status="IN_PROGRESS",
+                    report_title=response.report_title
+                )
+        
+        # Print extraction result for debugging
+        print("\n=== AI EXTRACTION RESULT ===")
+        print(f"Model: {model}")
+        if actual_usage:
+            print(f"Actual tokens - Prompt: {actual_usage.prompt_tokens}, Completion: {actual_usage.completion_tokens}, Total: {actual_usage.total_tokens}")
+        print(f"Extracted title: {response.report_title}")
+        print(f"State: {response.state}")
+        print("=== END OF AI EXTRACTION RESULT ===\n")
 
         # Add minimal validation for required fields to prevent data loss
         if not response.state:
@@ -166,32 +194,63 @@ def extract_data_with_openai(pdf_text, api_key, model=OPENAI_MODEL_DEFAULT):
         # Calculate processing time
         processing_time = int((time.time() - start_time) * 1000)  # ms
 
-        # Create AI extraction log
-        # Note: In a production system, we would use the actual token counts from OpenAI's response
-        # For this demonstration, we're using estimated values
-        estimated_input_tokens = len(pdf_text) // 4  # rough estimate
-        estimated_output_tokens = 1000  # rough estimate
+        # Use actual token counts if available, otherwise fall back to estimates
+        if actual_usage:
+            input_tokens = actual_usage.prompt_tokens
+            output_tokens = actual_usage.completion_tokens
+            total_tokens = actual_usage.total_tokens
+        else:
+            # Fallback to estimates only if actual usage is not available
+            logging.warning("Could not get actual token usage from OpenAI, using estimates")
+            input_tokens = len(pdf_text) // 4  # rough estimate
+            output_tokens = 1000  # rough estimate
+            total_tokens = input_tokens + output_tokens
 
         # Calculate costs based on model pricing
         if model == OPENAI_MODEL_GPT5_NANO:
             # GPT-5-nano pricing: $0.05 input / $0.40 output per 1M tokens
-            input_cost = estimated_input_tokens * 0.00000005
-            output_cost = estimated_output_tokens * 0.0000004
+            input_cost = input_tokens * 0.00000005
+            output_cost = output_tokens * 0.0000004
+        elif model == "gpt-4o-mini":
+            # GPT-4o-mini pricing: $0.15 input / $0.60 output per 1M tokens
+            input_cost = input_tokens * 0.00000015
+            output_cost = output_tokens * 0.0000006
         else:
             # GPT-4.1-nano or other models (legacy pricing)
-            input_cost = estimated_input_tokens * 0.00001
-            output_cost = estimated_output_tokens * 0.00003
+            input_cost = input_tokens * 0.00001
+            output_cost = output_tokens * 0.00003
 
+        total_cost = input_cost + output_cost
+        
         log = AIExtractionLog(model_name=model,
-                              input_tokens=estimated_input_tokens,
-                              output_tokens=estimated_output_tokens,
-                              total_tokens=estimated_input_tokens +
-                              estimated_output_tokens,
+                              input_tokens=input_tokens,
+                              output_tokens=output_tokens,
+                              total_tokens=total_tokens,
                               input_cost=input_cost,
                               output_cost=output_cost,
-                              total_cost=input_cost + output_cost,
+                              total_cost=total_cost,
                               processing_time_ms=processing_time,
                               extraction_status="SUCCESS")
+        
+        # Log successful extraction with full details
+        TokenUsageLogger.log_extraction(
+            provider="OpenAI",
+            model=model,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            total_tokens=total_tokens,
+            input_cost=input_cost,
+            output_cost=output_cost,
+            total_cost=total_cost,
+            processing_time_ms=processing_time,
+            status="SUCCESS",
+            report_title=response.report_title
+        )
+        
+        # Log estimation accuracy if we have actual usage
+        if actual_usage:
+            estimated_input = len(pdf_text) // 4
+            TokenUsageLogger.log_token_estimation_accuracy(estimated_input, input_tokens, "input")
 
         return (response, log)
 
@@ -201,17 +260,32 @@ def extract_data_with_openai(pdf_text, api_key, model=OPENAI_MODEL_DEFAULT):
         # Calculate processing time even for error case
         processing_time = int((time.time() - start_time) * 1000)  # ms
 
-        # Create error log
+        # Create error log with actual details
         log = AIExtractionLog(model_name=model,
                               input_tokens=0,
                               output_tokens=0,
                               total_tokens=0,
-                              input_cost=0,
-                              output_cost=0,
-                              total_cost=0,
+                              input_cost=0.0,
+                              output_cost=0.0,
+                              total_cost=0.0,
                               processing_time_ms=processing_time,
                               extraction_status="FAILURE",
                               error_details=str(e))
+        
+        # Log the failure
+        TokenUsageLogger.log_extraction(
+            provider="OpenAI",
+            model=model,
+            input_tokens=0,
+            output_tokens=0,
+            total_tokens=0,
+            input_cost=0.0,
+            output_cost=0.0,
+            total_cost=0.0,
+            processing_time_ms=processing_time,
+            status="FAILURE",
+            error=str(e)
+        )
 
         # Re-raise with more context
         raise ValueError(f"Failed to extract data with OpenAI: {e}")

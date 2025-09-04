@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import List, Optional
 from pydantic import BaseModel, Field
 from google import genai
+from utils.token_usage_logger import TokenUsageLogger
 
 # Using Gemini 2.5 Flash model for structured output
 GEMINI_MODEL = "gemini-2.5-flash"
@@ -109,15 +110,44 @@ def extract_data_with_gemini(pdf_text: str, api_key: str) -> tuple[ReportData, A
             report_data.audit_scope = "Audit scope not specified in source document"
             logging.warning("Audit scope field was empty, using fallback value")
         
-        # Calculate token usage and costs (Gemini pricing as of 2024)
-        # Note: Actual token counting would need to be implemented based on Gemini's usage reporting
-        input_tokens = estimate_tokens(pdf_text)
-        output_tokens = estimate_tokens(response.text if response.text else "")
-        total_tokens = input_tokens + output_tokens
+        # Get actual token usage from Gemini response
+        if hasattr(response, 'usage_metadata') and response.usage_metadata:
+            # Use actual token counts from Gemini
+            usage = response.usage_metadata
+            input_tokens = usage.prompt_token_count if usage.prompt_token_count else 0
+            output_tokens = usage.candidates_token_count if usage.candidates_token_count else 0
+            total_tokens = usage.total_token_count if usage.total_token_count else (input_tokens + output_tokens)
+            
+            # Log initial token counts
+            TokenUsageLogger.log_extraction(
+                provider="Gemini",
+                model=GEMINI_MODEL,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                total_tokens=total_tokens,
+                input_cost=0,  # Will be calculated below
+                output_cost=0,  # Will be calculated below
+                total_cost=0,  # Will be calculated below
+                processing_time_ms=0,  # Will be set below
+                status="IN_PROGRESS",
+                report_title=report_data.report_title
+            )
+            
+            # Log cached content tokens if present
+            if usage.cached_content_token_count:
+                logging.info(f"Cached content tokens: {usage.cached_content_token_count}")
+        else:
+            # Fallback to estimates only if usage metadata is not available
+            logging.warning("Could not get actual token usage from Gemini, using estimates")
+            input_tokens = estimate_tokens(pdf_text)
+            output_tokens = estimate_tokens(response.text if response.text else "")
+            total_tokens = input_tokens + output_tokens
         
-        # Gemini 2.5 Flash pricing (approximate)
-        input_cost = input_tokens * 0.00000015  # $0.15 per 1M input tokens
-        output_cost = output_tokens * 0.0000006  # $0.60 per 1M output tokens
+        # Calculate costs based on Gemini pricing
+        # Gemini 2.5 Flash pricing: $0.075 per 1M input tokens, $0.30 per 1M output tokens
+        # Updated pricing as of 2024/2025
+        input_cost = input_tokens * 0.000000075  # $0.075 per 1M input tokens
+        output_cost = output_tokens * 0.0000003   # $0.30 per 1M output tokens
         total_cost = input_cost + output_cost
         
         # Create extraction log
@@ -134,7 +164,25 @@ def extract_data_with_gemini(pdf_text: str, api_key: str) -> tuple[ReportData, A
             error_details=None
         )
         
-        logging.info(f"Successfully extracted data using Gemini. Processing time: {processing_time}ms, Tokens: {total_tokens}, Cost: ${total_cost:.4f}")
+        # Log successful extraction with full details
+        TokenUsageLogger.log_extraction(
+            provider="Gemini",
+            model=GEMINI_MODEL,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            total_tokens=total_tokens,
+            input_cost=input_cost,
+            output_cost=output_cost,
+            total_cost=total_cost,
+            processing_time_ms=processing_time,
+            status="success",
+            report_title=report_data.report_title
+        )
+        
+        # Log estimation accuracy if we have actual usage
+        if hasattr(response, 'usage_metadata') and response.usage_metadata:
+            estimated_input = len(pdf_text) // 4
+            TokenUsageLogger.log_token_estimation_accuracy(estimated_input, input_tokens, "input")
         
         return report_data, extraction_log
         
@@ -143,6 +191,21 @@ def extract_data_with_gemini(pdf_text: str, api_key: str) -> tuple[ReportData, A
         error_message = str(e)
         
         logging.error(f"Error extracting data with Gemini: {error_message}")
+        
+        # Log the failure
+        TokenUsageLogger.log_extraction(
+            provider="Gemini",
+            model=GEMINI_MODEL,
+            input_tokens=0,
+            output_tokens=0,
+            total_tokens=0,
+            input_cost=0.0,
+            output_cost=0.0,
+            total_cost=0.0,
+            processing_time_ms=processing_time,
+            status="failed",
+            error=error_message
+        )
         
         # Create error log
         extraction_log = AIExtractionLog(
@@ -178,8 +241,8 @@ def extract_data_with_gemini(pdf_text: str, api_key: str) -> tuple[ReportData, A
 
 def estimate_tokens(text: str) -> int:
     """
-    Rough estimation of token count for Gemini models.
-    Note: This is an approximation. Actual implementation should use Gemini's token counting API.
+    Fallback token estimation for Gemini models when actual usage is not available.
+    This is only used as a last resort when response.usage_metadata is not accessible.
     """
     if not text:
         return 0
