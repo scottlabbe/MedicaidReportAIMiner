@@ -84,7 +84,7 @@ class AuditSearchService:
                 item['ai_classification']['is_medicaid_audit'] = user_overrides[item['url']]
                 item['user_override'] = True
             
-            queue_item = ScrapingQueue(
+            queue_item = ScrapingQueue(  # type: ignore[call-arg]
                 url=item['url'],
                 title=item['title'],
                 source_domain=item['source'],
